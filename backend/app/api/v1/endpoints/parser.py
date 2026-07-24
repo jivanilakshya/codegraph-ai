@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.database.postgres import SessionLocal
 from app.models.file import File
 from app.models.project import Project
-from app.schemas.parser import AstNode, AstPoint, FileAstResponse, RawAstNode
+from app.schemas.parser import AstPoint, FileAstResponse, RawAstNode
 from app.services.parser_service import (
     ParserDependencyError,
     ParserService,
@@ -69,11 +69,7 @@ def _parse_stored_file(file_id: int) -> FileAstResponse:
         file=parsed_file.file,
         language=parsed_file.language,
         ast=_raw_ast_node_response(parsed_file.ast),
-        imports=[AstNode(**node.__dict__) for node in parsed_file.imports],
-        classes=[AstNode(**node.__dict__) for node in parsed_file.classes],
-        functions=[AstNode(**node.__dict__) for node in parsed_file.functions],
-        methods=[AstNode(**node.__dict__) for node in parsed_file.methods],
-        interfaces=[AstNode(**node.__dict__) for node in parsed_file.interfaces],
+        symbols=parsed_file.symbols,
     )
 
 

@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel
 
+from app.schemas.symbols import SymbolResponse
+
 
 class AstPoint(BaseModel):
     """A zero-based Tree-sitter source position."""
@@ -32,13 +34,9 @@ class AstNode(BaseModel):
 
 
 class FileAstResponse(BaseModel):
-    """Raw Tree-sitter AST and declaration summary for a stored source file."""
+    """Raw Tree-sitter AST and extracted symbols for a stored source file."""
 
     file: str
     language: str
     ast: RawAstNode
-    imports: list[AstNode]
-    classes: list[AstNode]
-    functions: list[AstNode]
-    methods: list[AstNode]
-    interfaces: list[AstNode]
+    symbols: SymbolResponse

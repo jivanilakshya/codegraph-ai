@@ -18,6 +18,9 @@ else:
 
 logger = logging.getLogger(__name__)
 
+from app.schemas.symbols import SymbolResponse
+from app.services.symbol_extractor import SymbolExtractor
+
 MAX_SOURCE_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
 LANGUAGE_BY_EXTENSION = {
@@ -101,6 +104,7 @@ class ParsedFile:
     file: str
     language: str
     ast: RawAstNode
+    symbols: SymbolResponse
     imports: list[ParsedNode]
     classes: list[ParsedNode]
     functions: list[ParsedNode]
@@ -137,7 +141,14 @@ class ParserService:
             logger.warning("Tree-sitter reported a syntax error in: %s", file_path)
             raise SourceSyntaxError("Source file contains syntax errors.")
 
-        parsed_file = self._extract_nodes(tree.root_node, source, file_path.name, language_name)
+        symbols = SymbolExtractor().extract(tree.root_node, source, language_name)
+        parsed_file = self._extract_nodes(
+            tree.root_node,
+            source,
+            file_path.name,
+            language_name,
+            symbols,
+        )
         logger.info(
             "Parsed %s as %s (%s imports, %s classes, %s functions, %s methods, %s interfaces)",
             file_path,
@@ -180,7 +191,14 @@ class ParserService:
         return Parser(language)
 
     @classmethod
-    def _extract_nodes(cls, root_node, source: bytes, file_name: str, language: str) -> ParsedFile:
+    def _extract_nodes(
+        cls,
+        root_node,
+        source: bytes,
+        file_name: str,
+        language: str,
+        symbols: SymbolResponse,
+    ) -> ParsedFile:
         """Walk a syntax tree and collect high-level declarations by category."""
         imports: list[ParsedNode] = []
         classes: list[ParsedNode] = []
@@ -217,6 +235,7 @@ class ParserService:
             file=file_name,
             language=language,
             ast=cls._raw_ast_node(root_node),
+            symbols=symbols,
             imports=imports,
             classes=classes,
             functions=functions,
