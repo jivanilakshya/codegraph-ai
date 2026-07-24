@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #06101f;
+  --foreground: #f4f8ff;
+  --muted: #aebdce;
+  --accent: #54d8ff;
+  --line: rgba(121, 207, 255, 0.13);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+.landing-shell {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(13, 55, 90, 0.25), transparent 38%),
+    var(--background);
+}
+
+.ambient-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  opacity: 0.8;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px),
+    radial-gradient(circle, rgba(113, 214, 255, 0.45) 1px, transparent 1.5px);
+  background-position: center, center, center;
+  background-size: 5rem 5rem, 5rem 5rem, 5rem 5rem;
+  mask-image: radial-gradient(ellipse 65% 50% at center, black, transparent 82%);
+}
+
+.ambient-orb {
+  position: absolute;
+  z-index: -1;
+  width: min(32rem, 65vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0.25;
+}
+
+.ambient-orb-left {
+  top: -22rem;
+  left: -14rem;
+  background: radial-gradient(circle, #057bb2 0%, transparent 68%);
+}
+
+.ambient-orb-right {
+  right: -16rem;
+  bottom: -24rem;
+  background: radial-gradient(circle, #0c5b9a 0%, transparent 68%);
+}
+
+.landing-content {
+  max-width: 54rem;
+  text-align: center;
+  animation: reveal 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(3.3rem, 9vw, 7.5rem);
+  font-weight: 700;
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+}
+
+.subtitle {
+  max-width: 42rem;
+  margin: 1.75rem auto 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 2.2vw, 1.3rem);
+  line-height: 1.6;
+}
+
+.coming-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 3.25rem;
+  border: 1px solid rgba(84, 216, 255, 0.3);
+  padding: 0.8rem 1.1rem;
+  color: #d9f6ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: rgba(5, 24, 43, 0.6);
+  box-shadow: 0 0 2.5rem rgba(31, 170, 225, 0.1);
+}
+
+.status-indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0.7rem var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.75);
+  }
+}
+
+@media (max-width: 40rem) {
+  .landing-shell {
+    padding: 1.5rem;
+  }
+
+  .ambient-grid {
+    background-size: 3.5rem 3.5rem, 3.5rem 3.5rem, 3.5rem 3.5rem;
+  }
+
+  .coming-soon {
+    margin-top: 2.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

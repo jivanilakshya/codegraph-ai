@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node.js
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+.next/
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Runtime data
+uploads/
+repositories/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
