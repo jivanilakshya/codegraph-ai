@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 
 from app.schemas.symbols import SymbolResponse
+from app.schemas.relationships import Relationship
 
 
 class AstPoint(BaseModel):
@@ -40,3 +41,4 @@ class FileAstResponse(BaseModel):
     language: str
     ast: RawAstNode
     symbols: SymbolResponse
+    relationships: list[Relationship]

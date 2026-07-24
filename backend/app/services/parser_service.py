@@ -19,6 +19,8 @@ else:
 logger = logging.getLogger(__name__)
 
 from app.schemas.symbols import SymbolResponse
+from app.schemas.relationships import Relationship
+from app.services.relationship_extractor import RelationshipExtractor
 from app.services.symbol_extractor import SymbolExtractor
 
 MAX_SOURCE_FILE_SIZE_BYTES = 5 * 1024 * 1024
@@ -105,6 +107,7 @@ class ParsedFile:
     language: str
     ast: RawAstNode
     symbols: SymbolResponse
+    relationships: list[Relationship]
     imports: list[ParsedNode]
     classes: list[ParsedNode]
     functions: list[ParsedNode]
@@ -142,12 +145,20 @@ class ParserService:
             raise SourceSyntaxError("Source file contains syntax errors.")
 
         symbols = SymbolExtractor().extract(tree.root_node, source, language_name)
+        relationships = RelationshipExtractor().extract(
+            tree.root_node,
+            source,
+            language_name,
+            file_path.name,
+            symbols,
+        )
         parsed_file = self._extract_nodes(
             tree.root_node,
             source,
             file_path.name,
             language_name,
             symbols,
+            relationships,
         )
         logger.info(
             "Parsed %s as %s (%s imports, %s classes, %s functions, %s methods, %s interfaces)",
@@ -198,6 +209,7 @@ class ParserService:
         file_name: str,
         language: str,
         symbols: SymbolResponse,
+        relationships: list[Relationship],
     ) -> ParsedFile:
         """Walk a syntax tree and collect high-level declarations by category."""
         imports: list[ParsedNode] = []
@@ -236,6 +248,7 @@ class ParserService:
             language=language,
             ast=cls._raw_ast_node(root_node),
             symbols=symbols,
+            relationships=relationships,
             imports=imports,
             classes=classes,
             functions=functions,

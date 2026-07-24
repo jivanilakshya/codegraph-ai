@@ -70,6 +70,7 @@ def _parse_stored_file(file_id: int) -> FileAstResponse:
         language=parsed_file.language,
         ast=_raw_ast_node_response(parsed_file.ast),
         symbols=parsed_file.symbols,
+        relationships=parsed_file.relationships,
     )
 
 
