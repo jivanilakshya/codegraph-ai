@@ -9,6 +9,10 @@ from app.schemas.symbols import SymbolResponse
 class RelationshipExtractor:
     """Extract deterministic symbol relationships from a Tree-sitter AST."""
 
+    # These built-ins describe module loading or language behaviour rather than
+    # application-level calls, so they do not produce useful graph edges.
+    _IGNORED_CALL_TARGETS = frozenset({"require", "import", "super"})
+
     def extract(
         self,
         root_node: Node,
@@ -41,8 +45,9 @@ class RelationshipExtractor:
     ) -> None:
         """Recursively traverse JavaScript AST nodes once for structural relationships."""
         if node.type == "call_expression":
-            self._extract_call(node, source, source_file, relationships, seen)
+            self._extract_calls(node, source, source_file, relationships, seen)
         elif node.type == "class_declaration":
+            self._extract_extends(node, source, relationships, seen)
             self._extract_class_relationships(node, source, relationships, seen)
 
         for child in node.named_children:
@@ -82,7 +87,7 @@ class RelationshipExtractor:
                 relationship="EXPORTED_BY",
             )
 
-    def _extract_call(
+    def _extract_calls(
         self,
         node: Node,
         source: bytes,
@@ -90,10 +95,10 @@ class RelationshipExtractor:
         relationships: list[Relationship],
         seen: set[tuple[str, str, str]],
     ) -> None:
-        """Create a CALLS relationship for a JavaScript call expression."""
+        """Create a CALLS relationship for one JavaScript call expression."""
         function = node.child_by_field_name("function")
         target = self._call_target(function, source)
-        if target is None or target in {"require"}:
+        if target is None or target in self._IGNORED_CALL_TARGETS:
             return
 
         self._add_relationship(
@@ -111,20 +116,10 @@ class RelationshipExtractor:
         relationships: list[Relationship],
         seen: set[tuple[str, str, str]],
     ) -> None:
-        """Create HAS_METHOD and EXTENDS relationships for a class declaration."""
+        """Create HAS_METHOD relationships for a class declaration."""
         class_name = self._declaration_name(node, source)
         if class_name is None:
             return
-
-        superclass = self._class_superclass(node, source)
-        if superclass is not None:
-            self._add_relationship(
-                relationships,
-                seen,
-                source=class_name,
-                target=superclass,
-                relationship="EXTENDS",
-            )
 
         class_body = node.child_by_field_name("body")
         if class_body is None:
@@ -141,6 +136,27 @@ class RelationshipExtractor:
                     target=method_name,
                     relationship="HAS_METHOD",
                 )
+
+    def _extract_extends(
+        self,
+        node: Node,
+        source: bytes,
+        relationships: list[Relationship],
+        seen: set[tuple[str, str, str]],
+    ) -> None:
+        """Create an EXTENDS relationship for a class's direct superclass."""
+        class_name = self._declaration_name(node, source)
+        superclass = self._class_superclass(node, source)
+        if class_name is None or superclass is None:
+            return
+
+        self._add_relationship(
+            relationships,
+            seen,
+            source=class_name,
+            target=superclass,
+            relationship="EXTENDS",
+        )
 
     def _call_target(self, node: Node | None, source: bytes) -> str | None:
         """Return the terminal callable name for identifier or member calls."""
