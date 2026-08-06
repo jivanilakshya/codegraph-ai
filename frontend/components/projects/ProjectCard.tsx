@@ -44,7 +44,7 @@ export function ProjectCard({ project, isScanning, onScan }: ProjectCardProps) {
       </dl>
 
       <div className="mt-auto flex gap-2 pt-5">
-        <Link href={`/repository?project=${project.id}`} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"><FolderOpen className="size-4" /> Open</Link>
+        <Link href={`/projects/${project.id}`} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"><FolderOpen className="size-4" /> Open</Link>
         <button type="button" onClick={() => onScan(project)} disabled={isScanning} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70">
           {isScanning ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}{isScanning ? "Scanning" : "Scan"}
         </button>
