@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+import stat
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,27 +77,23 @@ class GitHubService:
         target_path = self.repository_root / owner.lower() / repository_name.lower()
 
         self._ensure_project_is_not_registered(normalized_url)
-        if target_path.exists():
-            logger.warning("Orphaned repository detected at %s", target_path)
-            self._delete_orphaned_repository(target_path)
-
-        self._reserve_target_directory(target_path)
-        logger.info("Clone started: %s", normalized_url)
+        self._prepare_clone_target(target_path)
+        logger.info("Clone started: url=%s target=%s", normalized_url, target_path)
 
         try:
-            repository = Repo.clone_from(normalized_url, target_path)
+            repository = self._clone_with_retry(normalized_url, target_path)
             branch = repository.active_branch.name
         except PermissionError as error:
-            self._remove_reserved_directory(target_path)
+            self._remove_partial_clone(target_path)
             logger.exception("Permission denied while cloning repository: %s", normalized_url)
             raise RepositoryPermissionError(
                 "Permission denied while writing the repository."
             ) from error
         except GitCommandError as error:
-            self._remove_reserved_directory(target_path)
+            self._remove_partial_clone(target_path)
             self._raise_clone_error(normalized_url, error)
         except (TypeError, ValueError) as error:
-            self._remove_reserved_directory(target_path)
+            self._remove_partial_clone(target_path)
             logger.exception(
                 "Could not determine the default branch for repository: %s",
                 normalized_url,
@@ -105,7 +102,7 @@ class GitHubService:
                 "The repository does not have a readable default branch."
             ) from error
         except OSError as error:
-            self._remove_reserved_directory(target_path)
+            self._remove_partial_clone(target_path)
             logger.exception("Filesystem error while cloning repository: %s", normalized_url)
             raise RepositoryCloneError("Repository cloning failed.") from error
 
@@ -122,7 +119,7 @@ class GitHubService:
                 cloned_at=cloned_at,
             )
         except Exception:
-            self._remove_reserved_directory(target_path)
+            self._remove_partial_clone(target_path)
             logger.info("Rollback performed: removed cloned repository at %s", target_path)
             raise
 
@@ -169,40 +166,83 @@ class GitHubService:
                 "This repository has already been registered."
             )
 
-    @staticmethod
-    def _delete_orphaned_repository(target_path: Path) -> None:
-        """Remove an unregistered repository folder before recreating it."""
+    def _prepare_clone_target(self, target_path: Path) -> None:
+        """Prepare only the clone parent and remove incomplete clone remnants."""
         try:
-            shutil.rmtree(target_path)
-            logger.info("Removed orphaned repository directory: %s", target_path)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
         except PermissionError as error:
-            logger.exception("Permission denied while removing orphaned repository: %s", target_path)
-            raise RepositoryPermissionError(
-                "Permission denied while removing the orphaned repository."
-            ) from error
-        except OSError as error:
-            logger.exception("Failed to remove orphaned repository: %s", target_path)
-            raise RepositoryCloneError(
-                "Could not remove the orphaned repository directory."
-            ) from error
-
-    @staticmethod
-    def _reserve_target_directory(target_path: Path) -> None:
-        try:
-            target_path.mkdir(parents=True, exist_ok=False)
-        except FileExistsError as error:
-            raise RepositoryAlreadyExistsError(
-                "This repository has already been cloned."
-            ) from error
-        except PermissionError as error:
+            logger.exception("Permission denied while creating clone parent: %s", target_path.parent)
             raise RepositoryPermissionError(
                 "Permission denied while creating the repository directory."
             ) from error
+        except OSError as error:
+            logger.exception("Failed to create clone parent: %s", target_path.parent)
+            raise RepositoryCloneError(
+                "Could not prepare the repository directory."
+            ) from error
+
+        if not (target_path.exists() or target_path.is_symlink()):
+            return
+
+        if self._is_git_repository(target_path):
+            logger.warning("Existing Git repository found at clone target: %s", target_path)
+            raise RepositoryAlreadyExistsError(
+                "This repository has already been cloned."
+            )
+
+        logger.warning("Removing incomplete clone target before retry: %s", target_path)
+        self._remove_partial_clone(target_path)
 
     @staticmethod
-    def _remove_reserved_directory(target_path: Path) -> None:
-        if target_path.exists():
-            shutil.rmtree(target_path, ignore_errors=True)
+    def _is_git_repository(target_path: Path) -> bool:
+        """Treat a directory with a .git folder as an existing repository."""
+        return target_path.is_dir() and (target_path / ".git").is_dir()
+
+    def _clone_with_retry(self, github_url: str, target_path: Path) -> Repo:
+        """Clone once more after cleaning a partial target left by Git."""
+        for attempt in range(1, 3):
+            try:
+                logger.info("Git clone attempt %s/2: url=%s", attempt, github_url)
+                return Repo.clone_from(github_url, target_path)
+            except GitCommandError:
+                self._remove_partial_clone(target_path)
+                if attempt == 2:
+                    raise
+                logger.warning(
+                    "Git clone left a partial target; retrying: url=%s target=%s",
+                    github_url,
+                    target_path,
+                )
+
+        raise RepositoryCloneError("Git failed to clone the repository.")
+
+    @staticmethod
+    def _remove_partial_clone(target_path: Path) -> None:
+        """Remove a known incomplete clone target, including Windows read-only files."""
+        if not (target_path.exists() or target_path.is_symlink()):
+            return
+
+        def make_writable(function, path, exception_info) -> None:
+            del exception_info
+            os.chmod(path, stat.S_IWRITE)
+            function(path)
+
+        try:
+            if target_path.is_symlink() or target_path.is_file():
+                target_path.unlink()
+            else:
+                shutil.rmtree(target_path, onerror=make_writable)
+            logger.info("Removed partial clone target: %s", target_path)
+        except PermissionError as error:
+            logger.exception("Permission denied while removing clone target: %s", target_path)
+            raise RepositoryPermissionError(
+                "Permission denied while removing the incomplete repository."
+            ) from error
+        except OSError as error:
+            logger.exception("Failed to remove incomplete clone target: %s", target_path)
+            raise RepositoryCloneError(
+                "Could not remove the incomplete repository directory."
+            ) from error
 
     @staticmethod
     def _raise_clone_error(github_url: str, error: GitCommandError) -> None:

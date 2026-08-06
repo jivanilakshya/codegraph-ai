@@ -1,0 +1,6 @@
+python-dotenv
+requests
+rich
+SQLAlchemy
+psycopg2-binary
+neo4j
