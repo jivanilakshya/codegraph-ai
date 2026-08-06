@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database.postgres import SessionLocal, engine
@@ -114,7 +114,7 @@ class RepositoryScanner:
     """Recursively inventory project files without parsing their contents."""
 
     def scan_project(self, project_id: int) -> RepositoryScanResult:
-        """Scan a persisted project's repository and replace its file inventory."""
+        """Scan a persisted project's repository and synchronize its file inventory."""
         started_at = perf_counter()
         logger.debug("Loading project %s...", project_id)
         repository_path = self._project_repository_path(project_id)
@@ -213,7 +213,7 @@ class RepositoryScanner:
 
     @staticmethod
     def _save_file_inventory(project_id: int, scanned_files: list[ScannedFile]) -> None:
-        """Atomically replace the project's persisted file inventory."""
+        """Atomically synchronize the project's persisted file inventory by path."""
         session = SessionLocal()
 
         try:
@@ -225,28 +225,46 @@ class RepositoryScanner:
             logger.debug("File model is mapped to table: %s", File.__tablename__)
             logger.debug("Saving file inventory...")
 
-            deleted_rows = session.execute(
-                delete(File).where(File.project_id == project_id)
-            ).rowcount
-            logger.debug("Removed %s previous file inventory rows.", deleted_rows)
-
-            file_records = [
-                File(
-                    project_id=project_id,
-                    path=scanned_file.relative_path,
-                    language=scanned_file.language,
-                    size=scanned_file.size,
+            # Load the project inventory once. Relative path is the stable identity
+            # of a repository file, allowing existing rows to retain their IDs.
+            existing_by_path = {
+                file.path: file
+                for file in session.scalars(
+                    select(File).where(File.project_id == project_id)
                 )
-                for scanned_file in scanned_files
-            ]
-            logger.debug("Executing add_all() for %s file records.", len(file_records))
-            session.add_all(file_records)
-            session.flush()
+            }
+            inserted_rows = 0
+            updated_rows = 0
 
-            inserted_rows = session.scalar(
-                select(func.count()).select_from(File).where(File.project_id == project_id)
+            for scanned_file in sorted(
+                scanned_files, key=lambda file: file.relative_path
+            ):
+                existing_file = existing_by_path.pop(scanned_file.relative_path, None)
+                if existing_file is None:
+                    session.add(
+                        File(
+                            project_id=project_id,
+                            path=scanned_file.relative_path,
+                            language=scanned_file.language,
+                            size=scanned_file.size,
+                        )
+                    )
+                    inserted_rows += 1
+                elif RepositoryScanner._update_file_record(existing_file, scanned_file):
+                    updated_rows += 1
+
+            # Entries left after reconciliation no longer exist in the repository.
+            for removed_file in existing_by_path.values():
+                session.delete(removed_file)
+            deleted_rows = len(existing_by_path)
+
+            logger.info(
+                "Synchronized project %s files (%s inserted, %s updated, %s removed).",
+                project_id,
+                inserted_rows,
+                updated_rows,
+                deleted_rows,
             )
-            logger.info("Inserted %s rows for project %s.", inserted_rows, project_id)
 
             session.commit()
             logger.info("Commit successful for project %s.", project_id)
@@ -254,8 +272,6 @@ class RepositoryScanner:
                 "Session transaction active after commit: %s", session.in_transaction()
             )
 
-            files_table_count = session.scalar(select(func.count()).select_from(File))
-            logger.info("Files table now contains %s rows.", files_table_count)
         except SQLAlchemyError as error:
             logger.exception("Commit failure while saving project %s file inventory", project_id)
             logger.warning("Rolling back file inventory transaction for project %s.", project_id)
@@ -268,3 +284,15 @@ class RepositoryScanner:
         finally:
             session.close()
             logger.debug("Database session closed after scan persistence.")
+
+    @staticmethod
+    def _update_file_record(file: File, scanned_file: ScannedFile) -> bool:
+        """Update persisted metadata only when the scanned values have changed."""
+        changed = False
+        if file.language != scanned_file.language:
+            file.language = scanned_file.language
+            changed = True
+        if file.size != scanned_file.size:
+            file.size = scanned_file.size
+            changed = True
+        return changed
