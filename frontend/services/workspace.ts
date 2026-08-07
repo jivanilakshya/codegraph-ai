@@ -1,4 +1,4 @@
-import type { FileContent, RepositoryWorkspace } from "@/types/workspace";
+import type { FileAnalysis, FileContent, RepositoryWorkspace } from "@/types/workspace";
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -17,4 +17,8 @@ export function getRepositoryWorkspace(projectId: number, signal?: AbortSignal) 
 
 export function getFileContent(projectId: number, fileId: number, signal?: AbortSignal) {
   return request<FileContent>(`/api/v1/projects/${projectId}/files/${fileId}/content`, signal);
+}
+
+export function getFileAnalysis(fileId: number, signal?: AbortSignal) {
+  return request<FileAnalysis>(`/api/v1/files/${fileId}/ast`, signal);
 }

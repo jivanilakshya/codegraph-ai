@@ -1,0 +1,12 @@
+import { Database, Network } from "lucide-react";
+
+import { StatusPill, statusTone } from "@/components/developer/SystemOverview";
+import type { GraphStatsResponse, HealthResponse } from "@/types/developer";
+
+type ServiceStatsProps = { graphStats: GraphStatsResponse | null; health: HealthResponse | null; projectCount: number; selectedFileCount: number | null };
+
+function Metric({ label, value }: { label: string; value: string | number }) { return <div className="flex items-center justify-between gap-3 border-b border-slate-800 py-2.5 last:border-b-0"><span className="text-xs text-slate-500">{label}</span><span className="text-sm font-medium text-slate-200">{value}</span></div>; }
+
+export function ServiceStats({ graphStats, health, projectCount, selectedFileCount }: ServiceStatsProps) {
+  return <div className="grid gap-4 xl:grid-cols-2"><section aria-labelledby="neo4j-stats" className="rounded-xl border border-slate-800 bg-slate-950/65 p-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Network className="size-4 text-cyan-300" /><h2 id="neo4j-stats" className="text-base font-semibold text-slate-100">Neo4j Statistics</h2></div><StatusPill tone={statusTone(health?.neo4j ?? null)} label={health?.neo4j ? "Connected" : "Unknown"} /></div><div className="mt-3"><Metric label="Nodes" value={graphStats?.nodes ?? "Select a project"} /><Metric label="Relationships" value={graphStats?.edges ?? "Select a project"} /><Metric label="Graph status" value={graphStats ? "Available" : "Unavailable"} /></div></section><section aria-labelledby="postgres-stats" className="rounded-xl border border-slate-800 bg-slate-950/65 p-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Database className="size-4 text-cyan-300" /><h2 id="postgres-stats" className="text-base font-semibold text-slate-100">PostgreSQL Statistics</h2></div><StatusPill tone={statusTone(health?.postgres ?? null)} label={health?.postgres ? "Connected" : "Unknown"} /></div><div className="mt-3"><Metric label="Projects" value={projectCount} /><Metric label="Selected project files" value={selectedFileCount ?? "Select a project"} /><Metric label="Symbols" value="Endpoint not implemented" /><Metric label="Relationships" value="Endpoint not implemented" /><Metric label="Largest project / Latest scan" value="Endpoint not implemented" /></div></section></div>;
+}

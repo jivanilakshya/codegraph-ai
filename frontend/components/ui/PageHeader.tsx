@@ -1,9 +1,10 @@
 type PageHeaderProps = {
   title: string;
   description: string;
+  showStatusBadge?: boolean;
 };
 
-export function PageHeader({ title, description }: PageHeaderProps) {
+export function PageHeader({ title, description, showStatusBadge = true }: PageHeaderProps) {
   return (
     <header className="border-b border-slate-800 pb-6">
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-400">
@@ -15,9 +16,7 @@ export function PageHeader({ title, description }: PageHeaderProps) {
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
         {description}
       </p>
-      <span className="mt-5 inline-flex rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">
-        Coming Soon
-      </span>
+      {showStatusBadge && <span className="mt-5 inline-flex rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">Coming Soon</span>}
     </header>
   );
 }

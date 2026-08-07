@@ -12,10 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.logging import configure_logging
-from app.database.neo4j import close_driver, connect_neo4j, is_neo4j_available
+from app.core.startup import wait_for_neo4j, wait_for_postgres
+from app.database.neo4j import close_driver, is_neo4j_available
 from app.database.postgres import (
     close_postgres,
-    initialize_postgres,
     is_postgres_available,
 )
 
@@ -125,6 +125,7 @@ async def log_request(request: Request, call_next):
 @app.on_event("startup")
 def connect_databases() -> None:
     """Prepare runtime directories and report service connectivity."""
+    logger.info("Starting backend...")
     upload_directory = _runtime_directory("UPLOAD_PATH", "uploads")
     repository_directory = _runtime_directory("REPOSITORY_PATH", "repositories")
 
@@ -135,13 +136,14 @@ def connect_databases() -> None:
         logger.exception("Could not prepare runtime directories.")
         raise
 
-    initialize_postgres()
-    connect_neo4j()
+    wait_for_postgres()
+    wait_for_neo4j()
     _log_startup_banner(
         postgres_connected=True,
         neo4j_connected=True,
         ollama_available=_ollama_is_available(),
     )
+    logger.info("Application startup complete")
 
 
 @app.on_event("shutdown")
