@@ -1,6 +1,5 @@
 """PostgreSQL engine and session configuration."""
 
-import os
 import logging
 
 from sqlalchemy import create_engine, text
@@ -8,17 +7,12 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import sessionmaker
 
 from app.database.base import Base
+from app.core.config import get_database_url
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is required.")
-
+DATABASE_URL = get_database_url()
 database_url = make_url(DATABASE_URL)
-if not database_url.drivername.startswith("postgresql") or not database_url.database:
-    raise RuntimeError("DATABASE_URL must identify a PostgreSQL database.")
 
 engine: Engine = create_engine(database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -64,8 +58,34 @@ def initialize_postgres() -> None:
     import app.models  # noqa: F401  # Registers model metadata before table creation.
 
     ensure_database_exists()
-    Base.metadata.create_all(bind=engine)
+    # ``create_all`` checks and creates tables in separate statements. Serialize
+    # that sequence so reload workers cannot concurrently create the same
+    # PostgreSQL sequence or index during a first boot.
+    with engine.begin() as connection:
+        connection.execute(text("SELECT pg_advisory_xact_lock(92642173)"))
+        Base.metadata.create_all(bind=connection)
+        _create_inventory_indexes(connection)
     connect_postgres()
+
+
+def _create_inventory_indexes(connection) -> None:
+    """Add idempotent integrity indexes for databases created before constraints.
+
+    ``create_all`` does not alter tables that already exist. These indexes make
+    scanner retries safe on both fresh Compose volumes and existing local data.
+    """
+    connection.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_files_project_path "
+            "ON files (project_id, path)"
+        )
+    )
+    connection.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_project_metadata_project_key "
+            "ON project_metadata (project_id, key)"
+        )
+    )
 
 
 def is_postgres_available() -> bool:

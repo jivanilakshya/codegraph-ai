@@ -4,12 +4,20 @@ type ApiErrorResponse = { detail?: string };
 
 export interface ProjectUploadResponse {
   message: string;
+  project_id: number;
   project_name: string;
+  scanned_files: number;
+  supported_files: number;
+  ignored_files: number;
 }
 
 export interface GitHubCloneResponse {
   message: string;
+  project_id: number;
   project_name: string;
+  total_files: number;
+  supported_files: number;
+  ignored_files: number;
 }
 
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");

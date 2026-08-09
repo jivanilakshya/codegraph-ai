@@ -45,8 +45,12 @@ async def upload_project(file: UploadFile = File(...)) -> ProjectUploadResponse:
         ) from error
 
     return ProjectUploadResponse(
+        project_id=uploaded_project.project_id,
         project_name=uploaded_project.project_name,
         location=uploaded_project.location,
         total_files=uploaded_project.total_files,
         total_directories=uploaded_project.total_directories,
+        scanned_files=uploaded_project.scan.total_files,
+        supported_files=uploaded_project.scan.supported_files,
+        ignored_files=uploaded_project.scan.ignored_files,
     )

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -15,6 +15,9 @@ class Metadata(Base):
     """A key-value metadata entry associated with a project."""
 
     __tablename__ = "project_metadata"
+    __table_args__ = (
+        UniqueConstraint("project_id", "key", name="uq_project_metadata_project_key"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(

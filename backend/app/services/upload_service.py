@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database.postgres import SessionLocal
 from app.models.project import Project
+from app.services.repository_scanner import RepositoryScanError, RepositoryScanResult, RepositoryScanner
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +58,11 @@ class UploadedProject:
     """Metadata returned after a project archive is successfully imported."""
 
     project_name: str
+    project_id: int
     location: str
     total_files: int
     total_directories: int
+    scan: RepositoryScanResult
 
 
 class UploadService:
@@ -93,6 +96,7 @@ class UploadService:
                 self._ensure_project_does_not_exist(project_name, target_path)
                 self._reserve_target_directory(target_path)
 
+                project_id: int | None = None
                 try:
                     self._extract_archive(archive, members, target_path, wrapper_directory)
                     total_files, total_directories, total_size = self._project_statistics(
@@ -100,11 +104,21 @@ class UploadService:
                     )
                     if total_files == 0:
                         raise EmptyUploadError("ZIP file does not contain any files.")
-                    self._save_project(
+                    project_id = self._save_project(
                         name=project_name,
                         local_path=str(target_path.resolve()),
                     )
+                    scan = RepositoryScanner().scan_project(project_id)
+                except RepositoryScanError as error:
+                    if project_id is not None:
+                        self._delete_project(project_id)
+                    self._remove_directory(target_path)
+                    raise ExtractionError(
+                        "Project was extracted but its file inventory could not be saved."
+                    ) from error
                 except Exception:
+                    if project_id is not None:
+                        self._delete_project(project_id)
                     self._remove_directory(target_path)
                     raise
         except zipfile.BadZipFile as error:
@@ -123,19 +137,23 @@ class UploadService:
         )
         return UploadedProject(
             project_name=project_name,
+            project_id=project_id,
             location=str(target_path.resolve()),
             total_files=total_files,
             total_directories=total_directories,
+            scan=scan,
         )
 
     @staticmethod
     def _configured_path(
         environment_variable: str, configured_path: Path | None, default_path: Path
     ) -> Path:
+        if configured_path is not None:
+            return configured_path
         environment_path = os.getenv(environment_variable)
         if environment_path:
             return Path(environment_path).expanduser()
-        return configured_path or default_path
+        return default_path
 
     @staticmethod
     def _validate_filename(filename: str | None) -> None:
@@ -329,7 +347,7 @@ class UploadService:
         return total_files, total_directories, total_size
 
     @staticmethod
-    def _save_project(*, name: str, local_path: str) -> None:
+    def _save_project(*, name: str, local_path: str) -> int:
         project = Project(
             name=name,
             local_path=local_path,
@@ -339,10 +357,25 @@ class UploadService:
         try:
             with SessionLocal() as session:
                 session.add(project)
+                session.flush()
+                project_id = project.id
                 session.commit()
+                return project_id
         except SQLAlchemyError as error:
             logger.exception("Failed to save uploaded project: %s", name)
             raise ExtractionError("Project was extracted, but could not be saved.") from error
+
+    @staticmethod
+    def _delete_project(project_id: int) -> None:
+        """Remove a project record during an upload rollback."""
+        try:
+            with SessionLocal() as session:
+                project = session.get(Project, project_id)
+                if project is not None:
+                    session.delete(project)
+                    session.commit()
+        except SQLAlchemyError:
+            logger.exception("Could not roll back uploaded project record %s", project_id)
 
     @staticmethod
     def _remove_directory(target_path: Path) -> None:

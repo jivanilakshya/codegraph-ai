@@ -22,7 +22,7 @@ class RelationshipExtractor:
         symbols: SymbolResponse,
     ) -> list[Relationship]:
         """Return supported relationships without persisting analysis output."""
-        if language != "JavaScript":
+        if language not in {"JavaScript", "TypeScript"}:
             return []
         if not isinstance(source, bytes):
             raise TypeError("source must be provided as UTF-8 encoded bytes.")

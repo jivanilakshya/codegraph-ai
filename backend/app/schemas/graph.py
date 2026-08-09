@@ -1,43 +1,46 @@
-"""Response schemas for project code graphs."""
+"""Response schemas for the persisted project code graph."""
 
 from typing import Literal
 
 from pydantic import BaseModel
 
 
-GraphNodeType = Literal["file", "class", "function", "method", "variable", "module"]
-GraphRelationshipType = Literal[
-    "IMPORTS", "EXPORTS", "CALLS", "HAS_METHOD", "EXTENDS", "CONTAINS"
-]
+GraphNodeType = Literal["file", "function", "class", "variable"]
+GraphRelationshipType = Literal["IMPORTS", "DECLARES", "CALLS"]
 
 
 class GraphNode(BaseModel):
-    """One visualizable source-code entity in a project graph."""
+    """One file or persisted code declaration in a project graph."""
 
     id: str
     label: str
     type: GraphNodeType
-    file_id: int | None
-    project_id: int
 
 
 class GraphEdge(BaseModel):
-    """A directed relationship between two graph nodes."""
+    """One directed, visualizable relationship in a project graph."""
 
+    id: str
     source: str
     target: str
-    relationship: GraphRelationshipType
+    type: GraphRelationshipType
 
 
 class ProjectGraphResponse(BaseModel):
-    """The complete code graph for one project."""
+    """The complete bounded graph for one scanned project."""
 
     nodes: list[GraphNode]
     edges: list[GraphEdge]
 
 
+class GraphNodeSearchResponse(BaseModel):
+    """Lightweight node matches for graph search."""
+
+    nodes: list[GraphNode]
+
+
 class ProjectGraphStatsResponse(BaseModel):
-    """Aggregate counts for one project code graph."""
+    """Aggregate counts for one project's code graph."""
 
     nodes: int
     edges: int

@@ -21,4 +21,7 @@ class GitHubProjectCloneResponse(BaseModel):
     project_name: str
     branch: str
     local_path: str
+    total_files: int
+    supported_files: int
+    ignored_files: int
     message: str = "Repository cloned successfully"

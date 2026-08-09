@@ -1,4 +1,4 @@
-import { Boxes, CheckCircle2, CircleAlert, Database, Globe2, Server, Timer, type LucideIcon } from "lucide-react";
+import { Boxes, CircleAlert, Database, Globe2, Server, Timer, type LucideIcon } from "lucide-react";
 
 import type { HealthResponse } from "@/types/developer";
 

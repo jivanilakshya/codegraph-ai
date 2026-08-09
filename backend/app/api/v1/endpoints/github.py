@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.schemas.github import GitHubProjectCloneRequest, GitHubProjectCloneResponse
 from app.services.github_service import (
     GitHubService,
+    GitExecutableError,
     InvalidGitHubUrlError,
     RepositoryAlreadyExistsError,
     RepositoryCloneError,
@@ -34,6 +35,8 @@ def clone_github_project(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     except RepositoryPermissionError as error:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except GitExecutableError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
     except RepositoryNetworkError as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
     except RepositoryCloneError as error:
@@ -44,4 +47,7 @@ def clone_github_project(
         project_name=cloned_repository.project_name,
         branch=cloned_repository.branch,
         local_path=cloned_repository.local_path,
+        total_files=cloned_repository.scan.total_files,
+        supported_files=cloned_repository.scan.supported_files,
+        ignored_files=cloned_repository.scan.ignored_files,
     )

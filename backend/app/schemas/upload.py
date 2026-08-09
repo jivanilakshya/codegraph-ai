@@ -7,8 +7,12 @@ class ProjectUploadResponse(BaseModel):
     """Successful ZIP project upload response."""
 
     success: bool = True
+    project_id: int
     project_name: str
     location: str
     total_files: int
     total_directories: int
+    scanned_files: int
+    supported_files: int
+    ignored_files: int
     message: str = "Project uploaded successfully"

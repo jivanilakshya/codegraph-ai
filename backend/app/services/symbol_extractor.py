@@ -29,7 +29,7 @@ class SymbolExtractor:
         self, language: str
     ) -> Callable[[Node, bytes, SymbolResponse], None] | None:
         """Return the dedicated visitor for a supported extraction language."""
-        if language == "JavaScript":
+        if language in {"JavaScript", "TypeScript"}:
             return self._visit_javascript
         return None
 

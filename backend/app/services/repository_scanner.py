@@ -3,7 +3,7 @@
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
 
@@ -12,7 +12,20 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.database.postgres import SessionLocal, engine
 from app.models.file import File
+from app.models.metadata import Metadata
 from app.models.project import Project
+from app.services.relationship_persistence import (
+    RelationshipPersistenceError,
+    RelationshipPersistenceService,
+)
+from app.services.neo4j_graph_persistence import (
+    Neo4jGraphPersistenceError,
+    Neo4jGraphPersistenceService,
+)
+from app.services.entity_persistence import (
+    CodeEntityPersistenceService,
+    EntityPersistenceError,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -122,14 +135,29 @@ class RepositoryScanner:
         logger.debug("Scanning repository...")
         scanned_files, ignored_files = self._scan_directory(repository_path)
         logger.debug("Found %s files.", len(scanned_files))
-        self._save_file_inventory(project_id, scanned_files)
-
         result = RepositoryScanResult(
             total_files=len(scanned_files),
             supported_files=sum(file.is_supported for file in scanned_files),
             ignored_files=ignored_files,
             scan_time_ms=round((perf_counter() - started_at) * 1000),
         )
+        self._save_file_inventory(project_id, scanned_files, result)
+        try:
+            RelationshipPersistenceService().extract_and_store(project_id, repository_path)
+        except RelationshipPersistenceError as error:
+            logger.exception("Failed to persist relationships for project %s", project_id)
+            raise RepositoryScanError("Could not store extracted code relationships.") from error
+        try:
+            CodeEntityPersistenceService().extract_and_store(project_id, repository_path)
+        except EntityPersistenceError as error:
+            logger.exception("Failed to persist entities for project %s", project_id)
+            raise RepositoryScanError("Could not store extracted code entities.") from error
+        if os.getenv("SYNC_NEO4J_GRAPH", "false").lower() in {"1", "true", "yes"}:
+            try:
+                Neo4jGraphPersistenceService().sync_project(project_id)
+            except Neo4jGraphPersistenceError as error:
+                logger.exception("Failed to synchronize Neo4j graph for project %s", project_id)
+                raise RepositoryScanError("Could not synchronize the project graph to Neo4j.") from error
         logger.info(
             "Scanned project %s (%s files, %s supported, %s ignored) in %s ms",
             project_id,
@@ -212,7 +240,11 @@ class RepositoryScanner:
         return scanned_files, ignored_files
 
     @staticmethod
-    def _save_file_inventory(project_id: int, scanned_files: list[ScannedFile]) -> None:
+    def _save_file_inventory(
+        project_id: int,
+        scanned_files: list[ScannedFile],
+        result: RepositoryScanResult,
+    ) -> None:
         """Atomically synchronize the project's persisted file inventory by path."""
         session = SessionLocal()
 
@@ -258,6 +290,8 @@ class RepositoryScanner:
                 session.delete(removed_file)
             deleted_rows = len(existing_by_path)
 
+            RepositoryScanner._upsert_scan_metadata(session, project_id, result)
+
             logger.info(
                 "Synchronized project %s files (%s inserted, %s updated, %s removed).",
                 project_id,
@@ -284,6 +318,29 @@ class RepositoryScanner:
         finally:
             session.close()
             logger.debug("Database session closed after scan persistence.")
+
+    @staticmethod
+    def _upsert_scan_metadata(session, project_id: int, result: RepositoryScanResult) -> None:
+        """Store scan facts once per project so project_metadata remains useful."""
+        values = {
+            "total_files": str(result.total_files),
+            "supported_files": str(result.supported_files),
+            "ignored_files": str(result.ignored_files),
+            "scan_time_ms": str(result.scan_time_ms),
+            "scanned_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        existing = {
+            metadata.key: metadata
+            for metadata in session.scalars(
+                select(Metadata).where(Metadata.project_id == project_id)
+            )
+        }
+        for key, value in values.items():
+            entry = existing.get(key)
+            if entry is None:
+                session.add(Metadata(project_id=project_id, key=key, value=value))
+            else:
+                entry.value = value
 
     @staticmethod
     def _update_file_record(file: File, scanned_file: ScannedFile) -> bool:

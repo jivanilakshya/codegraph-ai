@@ -9,12 +9,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from git import GitCommandError, Repo
+from git import Git, GitCommandError, Repo
+from git.exc import GitCommandNotFound
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database.postgres import SessionLocal
 from app.models.project import Project
+from app.services.repository_scanner import RepositoryScanError, RepositoryScanResult, RepositoryScanner
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,10 @@ class RepositoryCloneError(GitHubServiceError):
     """Raised when Git cannot clone a repository for another reason."""
 
 
+class GitExecutableError(GitHubServiceError):
+    """Raised when GitPython cannot execute a usable Git binary."""
+
+
 @dataclass(frozen=True)
 class ClonedRepository:
     """Metadata produced after successfully cloning a GitHub repository."""
@@ -57,6 +63,7 @@ class ClonedRepository:
     project_name: str
     branch: str
     local_path: str
+    scan: RepositoryScanResult
 
 
 class GitHubService:
@@ -73,6 +80,7 @@ class GitHubService:
 
     def clone_repository(self, github_url: str) -> ClonedRepository:
         """Validate, clone, and persist an accessible GitHub repository."""
+        self._verify_git_executable()
         owner, repository_name, normalized_url = self._parse_github_url(github_url)
         target_path = self.repository_root / owner.lower() / repository_name.lower()
 
@@ -110,6 +118,7 @@ class GitHubService:
         cloned_at = datetime.now(timezone.utc)
         local_path = str(target_path.resolve())
 
+        project_id: int | None = None
         try:
             project_id = self._save_project(
                 name=repository_name,
@@ -118,7 +127,18 @@ class GitHubService:
                 default_branch=branch,
                 cloned_at=cloned_at,
             )
+            scan = RepositoryScanner().scan_project(project_id)
+        except RepositoryScanError as error:
+            if project_id is not None:
+                self._delete_project(project_id)
+            self._remove_partial_clone(target_path)
+            logger.exception("Repository scan failed after cloning %s", normalized_url)
+            raise RepositoryCloneError(
+                "Repository was cloned but its file inventory could not be saved."
+            ) from error
         except Exception:
+            if project_id is not None:
+                self._delete_project(project_id)
             self._remove_partial_clone(target_path)
             logger.info("Rollback performed: removed cloned repository at %s", target_path)
             raise
@@ -129,7 +149,21 @@ class GitHubService:
             project_name=repository_name,
             branch=branch,
             local_path=local_path,
+            scan=scan,
         )
+
+    @staticmethod
+    def _verify_git_executable() -> None:
+        """Fail with an actionable error instead of GitPython's opaque exception."""
+        try:
+            Git().version()
+        except GitCommandNotFound as error:
+            configured_executable = os.getenv("GIT_PYTHON_GIT_EXECUTABLE", "git")
+            raise GitExecutableError(
+                "GitPython could not run Git using "
+                f"GIT_PYTHON_GIT_EXECUTABLE={configured_executable!r}. "
+                "Install Git and set this variable to a valid executable path."
+            ) from error
 
     @staticmethod
     def _parse_github_url(github_url: str) -> tuple[str, str, str]:
@@ -293,3 +327,15 @@ class GitHubService:
             ) from error
         finally:
             session.close()
+
+    @staticmethod
+    def _delete_project(project_id: int) -> None:
+        """Remove a project record during an import rollback."""
+        try:
+            with SessionLocal() as session:
+                project = session.get(Project, project_id)
+                if project is not None:
+                    session.delete(project)
+                    session.commit()
+        except SQLAlchemyError:
+            logger.exception("Could not roll back project record %s", project_id)

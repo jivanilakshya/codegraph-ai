@@ -5,13 +5,16 @@ services:
       context: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log --log-level warning
     environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/codegraph_ai
+      POSTGRES_DB: ${POSTGRES_DB:-codegraph_ai}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-codegraph_ai}
       NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
       UPLOAD_PATH: ${UPLOAD_PATH:-/uploads}
       REPOSITORY_PATH: ${REPOSITORY_PATH:-/repositories}
+      GIT_PYTHON_GIT_EXECUTABLE: /usr/bin/git
+      SYNC_NEO4J_GRAPH: "true"
     ports:
       - "8000:8000"
     volumes:
@@ -49,9 +52,9 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: codegraph_ai
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB:-codegraph_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
       - "5432:5432"
     volumes:

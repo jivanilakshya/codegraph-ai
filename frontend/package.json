@@ -9,6 +9,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@types/dagre": "^0.7.54",
+    "dagre": "^0.8.5",
     "@xyflow/react": "^12.11.2",
     "axios": "^1.8.4",
     "lucide-react": "^0.468.0",
