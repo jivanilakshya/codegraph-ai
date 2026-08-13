@@ -8,7 +8,7 @@ from app.models.entity_relationship import EntityRelationship
 from app.models.file import File
 from app.models.relationship import FileRelationship
 from app.schemas.graph import GraphEdge, GraphNode, ProjectGraphResponse
-from app.services.graph_service import GraphService, _ProjectGraphRecords
+from app.services.graph_service import GraphService, GraphServiceError, _ProjectGraphRecords
 
 
 class GraphServiceTests(unittest.TestCase):
@@ -42,70 +42,40 @@ class GraphServiceTests(unittest.TestCase):
             ],
         )
 
-    def test_build_focus_graph_returns_two_hop_call_neighborhood(self) -> None:
+    def test_validate_graph_integrity_rejects_duplicate_node_ids(self) -> None:
         graph = ProjectGraphResponse(
             nodes=[
-                GraphNode(id="entity_1", label="one", type="function"),
-                GraphNode(id="entity_2", label="two", type="function"),
-                GraphNode(id="entity_3", label="three", type="function"),
-                GraphNode(id="entity_4", label="four", type="function"),
+                GraphNode(id="file_1", label="a.py", type="file"),
+                GraphNode(id="file_1", label="b.py", type="file"),
             ],
-            edges=[
-                GraphEdge(id="edge_1", source="entity_1", target="entity_2", type="CALLS"),
-                GraphEdge(id="edge_2", source="entity_2", target="entity_3", type="CALLS"),
-                GraphEdge(id="edge_3", source="entity_3", target="entity_4", type="CALLS"),
-            ],
-        )
-        with patch.object(GraphService, "build_project_graph", return_value=graph):
-            focus_graph = GraphService().build_focus_graph(7, entity_id=1)
-
-        self.assertEqual({node.id for node in focus_graph.nodes}, {"entity_1", "entity_2", "entity_3"})
-        self.assertEqual(len(focus_graph.edges), 2)
-
-    def test_build_focus_graph_without_target_returns_full_graph(self) -> None:
-        graph = ProjectGraphResponse(
-            nodes=[GraphNode(id="file_1", label="example.py", type="file")],
             edges=[],
         )
-        with patch.object(GraphService, "build_project_graph", return_value=graph):
-            focused_graph = GraphService().build_focus_graph(7)
+        with self.assertRaises(GraphServiceError):
+            GraphService._validate_graph_integrity(graph)
 
-        self.assertEqual(focused_graph, graph)
-
-    def test_build_file_focus_graph_expands_persisted_call_chains_by_depth(self) -> None:
-        """Depths use persisted calls, not the bounded full-graph projection."""
-        depth_one_records = _file_focus_records([])
-        depth_two_records = _file_focus_records(
-            [EntityRelationship(id=51, source_entity_id=31, target_entity_id=32, relationship_type="CALLS")]
-        )
-        depth_three_records = _file_focus_records(
-            [
-                EntityRelationship(id=51, source_entity_id=31, target_entity_id=32, relationship_type="CALLS"),
-                EntityRelationship(id=52, source_entity_id=32, target_entity_id=33, relationship_type="CALLS"),
-            ]
-        )
-        with patch.object(
-            GraphService,
-            "_load_file_focus_records",
-            side_effect=[depth_one_records, depth_two_records, depth_three_records],
-        ):
-            depth_one = GraphService().build_focus_graph(7, file_id=1, depth=1)
-            depth_two = GraphService().build_focus_graph(7, file_id=1, depth=2)
-            depth_three = GraphService().build_focus_graph(7, file_id=1, depth=3)
-
-        self.assertFalse([edge for edge in depth_one.edges if edge.type == "CALLS"])
-        self.assertEqual(
-            [(edge.id, edge.source, edge.target) for edge in depth_two.edges if edge.type == "CALLS"],
-            [("call_31_32", "entity_31", "entity_32")],
-        )
-        self.assertEqual(
-            [(edge.id, edge.source, edge.target) for edge in depth_three.edges if edge.type == "CALLS"],
-            [
-                ("call_31_32", "entity_31", "entity_32"),
-                ("call_32_33", "entity_32", "entity_33"),
+    def test_validate_graph_integrity_rejects_missing_edge_endpoints(self) -> None:
+        graph = ProjectGraphResponse(
+            nodes=[GraphNode(id="file_1", label="a.py", type="file")],
+            edges=[
+                GraphEdge(id="edge_1", source="file_1", target="entity_99", type="DECLARES"),
             ],
         )
-        self.assertGreater(len(depth_three.nodes), len(depth_two.nodes))
+        with self.assertRaises(GraphServiceError):
+            GraphService._validate_graph_integrity(graph)
+
+    def test_validate_graph_integrity_rejects_duplicate_relationships(self) -> None:
+        graph = ProjectGraphResponse(
+            nodes=[
+                GraphNode(id="file_1", label="a.py", type="file"),
+                GraphNode(id="entity_1", label="run", type="function"),
+            ],
+            edges=[
+                GraphEdge(id="edge_1", source="file_1", target="entity_1", type="DECLARES"),
+                GraphEdge(id="edge_2", source="file_1", target="entity_1", type="DECLARES"),
+            ],
+        )
+        with self.assertRaises(GraphServiceError):
+            GraphService._validate_graph_integrity(graph)
 
 
 def _records() -> _ProjectGraphRecords:
@@ -132,27 +102,4 @@ def _records() -> _ProjectGraphRecords:
                 relationship_type="CALLS",
             )
         ],
-    )
-
-
-def _file_focus_records(calls: list[EntityRelationship]) -> _ProjectGraphRecords:
-    """Selected-file records with A -> B -> C persisted CALLS."""
-    included_ids = {31, 32}
-    for call in calls:
-        included_ids.update((call.source_entity_id, call.target_entity_id))
-    entities_by_id = {
-        31: CodeEntity(id=31, file_id=1, name="A", entity_type="function", start_line=1, end_line=2),
-        32: CodeEntity(id=32, file_id=1, name="B", entity_type="function", start_line=4, end_line=5),
-        33: CodeEntity(id=33, file_id=2, name="C", entity_type="function", start_line=1, end_line=2),
-    }
-    return _ProjectGraphRecords(
-        files=[
-            File(id=1, project_id=7, path="src/a.py", language="Python", size=100),
-            File(id=2, project_id=7, path="src/c.py", language="Python", size=100),
-        ],
-        entities=[entities_by_id[entity_id] for entity_id in sorted(included_ids)],
-        file_relationships=[
-            FileRelationship(id=41, source_file_id=1, target_file_id=2, relationship_type="IMPORTS")
-        ],
-        entity_relationships=calls,
     )

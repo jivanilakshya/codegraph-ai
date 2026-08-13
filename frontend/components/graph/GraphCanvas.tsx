@@ -16,7 +16,6 @@ type GraphCanvasProps = {
   isSearching?: boolean;
   matchedNodeIds?: Set<string>;
   nodes?: CodeGraphNodeRecord[];
-  onFileFocus?: (fileNodeId: string, fileLabel: string) => void;
   onNodeSelect?: (nodeId: string) => void;
 };
 
@@ -172,7 +171,7 @@ function flowEdges(edges: CodeGraphEdge[] = [], matchedNodeIds: Set<string> = em
   });
 }
 
-export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusNodeId = null, graphKey = "initial", isSearching = false, matchedNodeIds = emptyMatchedNodeIds, nodes: inputNodes = [], onFileFocus, onNodeSelect }: GraphCanvasProps) {
+export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusNodeId = null, graphKey = "initial", isSearching = false, matchedNodeIds = emptyMatchedNodeIds, nodes: inputNodes = [], onNodeSelect }: GraphCanvasProps) {
   const instance = useRef<ReactFlowInstance<Node<FlowCodeGraphNodeData>, Edge> | null>(null);
   const layoutedNodes = useMemo(() => layoutFocusedGraph(inputNodes, inputEdges), [inputEdges, inputNodes]);
   const connectedNodeIds = useMemo(() => !focusNodeId ? null : new Set([focusNodeId, ...inputEdges.flatMap((edge) => edge.source === focusNodeId ? [edge.target] : edge.target === focusNodeId ? [edge.source] : [])]), [focusNodeId, inputEdges]);
@@ -195,9 +194,8 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
 
   const onInit: OnInit<Node<FlowCodeGraphNodeData>, Edge> = (reactFlowInstance) => { instance.current = reactFlowInstance; requestAnimationFrame(() => reactFlowInstance.fitView({ padding: 0.16, maxZoom: 1.2 })); };
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<FlowCodeGraphNodeData>) => {
-    if (node.data.nodeType === "file") onFileFocus?.(node.id, node.data.label);
     onNodeSelect?.(node.id);
-  }, [onFileFocus, onNodeSelect]);
+  }, [onNodeSelect]);
 
   return <div className="h-[min(68vh,760px)] min-h-[34rem] overflow-hidden rounded-xl border border-slate-800 bg-slate-950"><ReactFlow key={graphKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onInit={onInit} onNodeClick={handleNodeClick} fitView nodesDraggable panOnDrag panOnScroll zoomOnScroll zoomOnPinch minZoom={0.2} maxZoom={2.5} proOptions={{ hideAttribution: true }}><Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#334155" /><Controls className="!rounded-lg !border-slate-700 !bg-slate-900 [&>button]:!border-slate-700 [&>button]:!bg-slate-900 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800" showInteractive={false} /><MiniMap pannable zoomable nodeColor={(node) => { const type = (node.data as FlowCodeGraphNodeData).nodeType; return type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "variable" ? "#fbbf24" : "#22d3ee"; }} maskColor="rgba(2, 6, 23, 0.78)" className="!rounded-lg !border !border-slate-700 !bg-slate-900" /></ReactFlow></div>;
 }

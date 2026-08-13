@@ -14,17 +14,3 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
 export function getProjectGraph(projectId: number, signal?: AbortSignal) {
   return request<ProjectGraph>(`/api/v1/projects/${projectId}/graph`, signal);
 }
-
-/** Return the small graph neighborhood used by the interactive graph canvas. */
-export function getFocusedProjectGraph(
-  projectId: number,
-  focus: { fileId?: number; entityId?: number; depth?: number },
-  signal?: AbortSignal,
-) {
-  const parameters = new URLSearchParams();
-  if (focus.fileId !== undefined) parameters.set("file_id", String(focus.fileId));
-  if (focus.entityId !== undefined) parameters.set("entity_id", String(focus.entityId));
-  if (focus.depth !== undefined) parameters.set("depth", String(focus.depth));
-  const suffix = parameters.size ? `?${parameters.toString()}` : "";
-  return request<ProjectGraph>(`/api/v1/projects/${projectId}/graph/focus${suffix}`, signal);
-}

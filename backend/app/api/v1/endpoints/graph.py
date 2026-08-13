@@ -11,7 +11,6 @@ from app.schemas.graph import (
 )
 from app.services.graph_service import (
     GraphProjectNotFoundError,
-    GraphNodeNotFoundError,
     GraphService,
     GraphServiceError,
 )
@@ -39,40 +38,6 @@ def search_project_graph_nodes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not search the requested project graph.",
-        ) from error
-
-
-@router.get("/{project_id}/graph/focus", response_model=ProjectGraphResponse)
-def get_project_graph_focus(
-    project_id: int,
-    file_id: int | None = Query(default=None, ge=1),
-    entity_id: int | None = Query(default=None, ge=1),
-    depth: int = Query(default=1, ge=1, le=3),
-) -> ProjectGraphResponse:
-    """Return a full graph or a depth-controlled neighborhood for one record."""
-    if file_id is not None and entity_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Specify either file_id or entity_id, not both.",
-        )
-
-    try:
-        graph_service = GraphService()
-        if file_id is None and entity_id is None:
-            return graph_service.build_project_graph(project_id)
-        return graph_service.build_focus_graph(
-            project_id,
-            file_id=file_id,
-            entity_id=entity_id,
-            depth=depth,
-        )
-    except (GraphProjectNotFoundError, GraphNodeNotFoundError) as error:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    except GraphServiceError as error:
-        logger.exception("Could not build focus graph for project %s", project_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not build the requested focus graph.",
         ) from error
 
 
