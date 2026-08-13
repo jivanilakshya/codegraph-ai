@@ -42,7 +42,7 @@ function createDagreGraph(rankdir: "LR" | "TB", options: Record<string, number>)
 }
 
 function layoutStandaloneNodes(inputNodes: CodeGraphNodeRecord[], inputEdges: CodeGraphEdge[], xOffset = 0): Node<FlowCodeGraphNodeData>[] {
-  const graph = createDagreGraph("TB", { nodesep: 80, ranksep: 120, marginx: 24, marginy: 24 });
+  const graph = createDagreGraph("TB", { nodesep: 100, ranksep: 140, marginx: 32, marginy: 32 });
   const nodeIds = new Set(inputNodes.map((node) => node.id));
   inputNodes.slice().sort((left, right) => left.id.localeCompare(right.id)).forEach((node) => graph.setNode(node.id, { width: entityNodeWidth, height: entityNodeHeight }));
   inputEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)).forEach((edge) => graph.setEdge(edge.source, edge.target));
@@ -68,7 +68,7 @@ function layoutStandaloneNodes(inputNodes: CodeGraphNodeRecord[], inputEdges: Co
 function layoutModuleChildren(fileId: string, entities: CodeGraphNodeRecord[], edges: CodeGraphEdge[]): ModuleLayout {
   if (!entities.length) return { childNodes: [], width: moduleMinWidth, height: moduleEmptyHeight };
 
-  const graph = createDagreGraph("TB", { nodesep: 22, ranksep: 46, marginx: 0, marginy: 0 });
+  const graph = createDagreGraph("TB", { nodesep: 32, ranksep: 58, marginx: 8, marginy: 8 });
   const entityIds = new Set(entities.map((entity) => entity.id));
   entities.forEach((entity) => graph.setNode(entity.id, { width: entityNodeWidth, height: entityNodeHeight }));
   edges
@@ -118,7 +118,7 @@ function layoutFocusedGraph(inputNodes: CodeGraphNodeRecord[] = [], inputEdges: 
 
   const modules = new Map<string, ModuleLayout>();
   files.forEach((file) => modules.set(file.id, layoutModuleChildren(file.id, entitiesByFile.get(file.id) ?? [], inputEdges)));
-  const fileGraph = createDagreGraph("TB", { nodesep: 80, ranksep: 120, marginx: 36, marginy: 36 });
+  const fileGraph = createDagreGraph("TB", { nodesep: 100, ranksep: 160, marginx: 48, marginy: 48 });
   files.forEach((file) => {
     const moduleLayout = modules.get(file.id)!;
     fileGraph.setNode(file.id, { width: moduleLayout.width, height: moduleLayout.height });
@@ -182,7 +182,12 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
 
   useEffect(() => { setNodes([...initialNodes]); }, [graphKey, initialNodes, setNodes]);
   useEffect(() => { setEdges([...initialEdges]); }, [graphKey, initialEdges, setEdges]);
-  useEffect(() => { if (fitViewRequest) requestAnimationFrame(() => instance.current?.fitView({ padding: 0.16, duration: 350 })); }, [fitViewRequest]);
+  useEffect(() => { if (fitViewRequest) requestAnimationFrame(() => instance.current?.fitView({ padding: 0.12, duration: 350 })); }, [fitViewRequest]);
+  useEffect(() => {
+    const onResize = () => requestAnimationFrame(() => instance.current?.fitView({ padding: 0.12, duration: 200 }));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   useEffect(() => {
     const focusedNode = focusNodeId ? nodes.find((node) => node.id === focusNodeId) : null;
     if (focusedNode) {
@@ -192,10 +197,51 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
     }
   }, [focusNodeId, nodes]);
 
-  const onInit: OnInit<Node<FlowCodeGraphNodeData>, Edge> = (reactFlowInstance) => { instance.current = reactFlowInstance; requestAnimationFrame(() => reactFlowInstance.fitView({ padding: 0.16, maxZoom: 1.2 })); };
+  const onInit: OnInit<Node<FlowCodeGraphNodeData>, Edge> = (reactFlowInstance) => {
+    instance.current = reactFlowInstance;
+    requestAnimationFrame(() => reactFlowInstance.fitView({ padding: 0.12, maxZoom: 1.2 }));
+  };
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<FlowCodeGraphNodeData>) => {
     onNodeSelect?.(node.id);
   }, [onNodeSelect]);
 
-  return <div className="h-[min(68vh,760px)] min-h-[34rem] overflow-hidden rounded-xl border border-slate-800 bg-slate-950"><ReactFlow key={graphKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onInit={onInit} onNodeClick={handleNodeClick} fitView nodesDraggable panOnDrag panOnScroll zoomOnScroll zoomOnPinch minZoom={0.2} maxZoom={2.5} proOptions={{ hideAttribution: true }}><Background variant={BackgroundVariant.Lines} gap={20} size={1} color="#334155" /><Controls className="!rounded-lg !border-slate-700 !bg-slate-900 [&>button]:!border-slate-700 [&>button]:!bg-slate-900 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800" showInteractive={false} /><MiniMap pannable zoomable nodeColor={(node) => { const type = (node.data as FlowCodeGraphNodeData).nodeType; return type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "variable" ? "#fbbf24" : "#22d3ee"; }} maskColor="rgba(2, 6, 23, 0.78)" className="!rounded-lg !border !border-slate-700 !bg-slate-900" /></ReactFlow></div>;
+  return (
+    <div className="h-full w-full overflow-hidden bg-[#060a10]">
+      <ReactFlow
+        key={graphKey}
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onInit={onInit}
+        onNodeClick={handleNodeClick}
+        fitView
+        nodesDraggable
+        panOnDrag
+        panOnScroll
+        zoomOnScroll
+        zoomOnPinch
+        minZoom={0.15}
+        maxZoom={2.5}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="#1e293b" />
+        <Controls
+          className="!bottom-4 !left-4 !top-auto !rounded-lg !border-slate-700 !bg-slate-900/95 [&>button]:!border-slate-700 [&>button]:!bg-slate-900 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800"
+          showInteractive={false}
+        />
+        <MiniMap
+          pannable
+          zoomable
+          nodeColor={(node) => {
+            const type = (node.data as FlowCodeGraphNodeData).nodeType;
+            return type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "variable" ? "#fbbf24" : "#22d3ee";
+          }}
+          maskColor="rgba(2, 6, 23, 0.78)"
+          className="!bottom-4 !right-4 !top-auto !h-28 !w-40 !rounded-lg !border !border-slate-700 !bg-slate-900/95"
+        />
+      </ReactFlow>
+    </div>
+  );
 }
