@@ -39,7 +39,6 @@ codegraph-ai/
 ├── README.md
 └── LICENSE
 ```
-
 ## Development Roadmap
 
 Planned milestones will be documented here as the project scope and implementation sequence are finalized.
