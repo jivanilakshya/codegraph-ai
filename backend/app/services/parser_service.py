@@ -118,6 +118,8 @@ class ParsedFile:
 class ParserService:
     """Parse supported source files and extract high-level declaration nodes."""
 
+    _parser_cache: dict[str, tuple[Language, Parser]] = {}
+
     def parse_file(self, file_path: Path) -> ParsedFile:
         """Parse one absolute source path without persisting parser output."""
         if not file_path.is_absolute():
@@ -190,16 +192,20 @@ class ParserService:
                 "Tree-sitter dependencies are unavailable. Rebuild the backend image."
             ) from TREE_SITTER_IMPORT_ERROR
 
-        if extension == ".py":
-            language = Language(ts_python.language())
-        elif extension == ".js":
-            language = Language(ts_javascript.language())
-        elif extension == ".tsx":
-            language = Language(ts_typescript.language_tsx())
-        else:
-            language = Language(ts_typescript.language_typescript())
+        if extension not in ParserService._parser_cache:
+            if extension == ".py":
+                language = Language(ts_python.language(), "python")
+            elif extension == ".js":
+                language = Language(ts_javascript.language(), "javascript")
+            elif extension == ".tsx":
+                language = Language(ts_typescript.language_tsx(), "tsx")
+            else:
+                language = Language(ts_typescript.language_typescript(), "typescript")
+            parser = Parser()
+            parser.set_language(language)
+            ParserService._parser_cache[extension] = (language, parser)
 
-        return Parser(language)
+        return ParserService._parser_cache[extension][1]
 
     @classmethod
     def _extract_nodes(
@@ -265,12 +271,12 @@ class ParserService:
             start_byte=node.start_byte,
             end_byte=node.end_byte,
             start_point=RawAstPoint(
-                row=node.start_point.row,
-                column=node.start_point.column,
+                row=node.start_point[0],
+                column=node.start_point[1],
             ),
             end_point=RawAstPoint(
-                row=node.end_point.row,
-                column=node.end_point.column,
+                row=node.end_point[0],
+                column=node.end_point[1],
             ),
             children=[cls._raw_ast_node(child) for child in node.children],
         )
@@ -294,6 +300,6 @@ class ParserService:
         return ParsedNode(
             name=name,
             type=node.type,
-            start_line=node.start_point.row + 1,
-            end_line=node.end_point.row + 1,
+            start_line=node.start_point[0] + 1,
+            end_line=node.end_point[0] + 1,
         )

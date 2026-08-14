@@ -38,7 +38,7 @@ class RelationshipPersistenceError(Exception):
 class RelationshipPersistenceService:
     """Rebuild one project's import edges after its file inventory is synchronized."""
 
-    def extract_and_store(self, project_id: int, repository_root: Path) -> None:
+    def extract_and_store(self, project_id: int, repository_root: Path, file_mtimes: dict[str, float] = None) -> None:
         """Read source files, resolve local imports, and replace stored import edges."""
         project_files = self._load_project_files(project_id)
         source_files = [file for file in project_files if file.language in _SOURCE_LANGUAGES]

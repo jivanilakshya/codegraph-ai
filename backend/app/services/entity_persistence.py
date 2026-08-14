@@ -4,6 +4,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -82,39 +83,88 @@ class FileExtraction:
     imports: list[ImportBinding]
 
 
+@dataclass(frozen=True)
+class FileExtractionResult:
+    extraction: FileExtraction
+    parse_time: float
+    metadata_time: float
+    calls_time: float
+    status: str
+    tree: object = None
+
+
+_EXTRACTION_CACHE: dict[tuple[int, str, float | None], FileExtraction] = {}
+
+
 class CodeEntityPersistenceService:
     """Replace one project's declarations and resolvable function-call relationships."""
 
-    def extract_and_store(self, project_id: int, repository_root: Path) -> None:
-        files = self._load_project_files(project_id)
-        files_by_path = {file.path: file for file in files}
-        extractions: dict[int, FileExtraction] = {}
-        for file_record in files:
-            if file_record.language not in _SUPPORTED_LANGUAGES:
-                continue
-            source_path = (repository_root / file_record.path).resolve()
-            if not source_path.is_relative_to(repository_root) or not source_path.is_file():
-                continue
-            try:
-                extractions[file_record.id] = self._extract_file(
-                    source_path, file_record, files_by_path
-                )
-            except ParserDependencyError as error:
-                raise EntityPersistenceError(
-                    "Tree-sitter dependencies are unavailable for entity extraction."
-                ) from error
+    def extract_and_store(
+        self, project_id: int, repository_root: Path, file_mtimes: dict[str, float] = None
+    ) -> tuple[float, float, float, int, int, int]:
+        import gc
+        gc_was_enabled = gc.isenabled()
+        if gc_was_enabled:
+            gc.disable()
 
-        entity_count, call_count, unmatched_count = self._replace_project_entities(
-            files, extractions
-        )
-        logger.info(
-            "Entity extraction for project %s: total entities=%s, "
-            "total function calls detected=%s, unmatched references=%s",
-            project_id,
-            entity_count,
-            call_count,
-            unmatched_count,
-        )
+        try:
+            files = self._load_project_files(project_id)
+            files_by_path = {file.path: file for file in files}
+            extractions: dict[int, FileExtraction] = {}
+
+            total_parse = 0.0
+            total_metadata = 0.0
+            total_calls = 0.0
+            parsed_count = 0
+            skipped_count = 0
+            failed_count = 0
+
+            # We also keep a list of results (which hold reference to tree objects) to prevent GC
+            results_cache = []
+
+            for file in files:
+                source_path = (repository_root / file.path).resolve()
+                mtime = file_mtimes.get(file.path) if file_mtimes else None
+                cache_key = (project_id, file.path, mtime)
+
+                if cache_key in _EXTRACTION_CACHE:
+                    extractions[file.id] = _EXTRACTION_CACHE[cache_key]
+                    skipped_count += 1
+                    continue
+
+                result = self._extract_file(source_path, file, files_by_path)
+                results_cache.append(result)
+
+                if result.status == "success":
+                    extractions[file.id] = result.extraction
+                    _EXTRACTION_CACHE[cache_key] = result.extraction
+                    total_parse += result.parse_time
+                    total_metadata += result.metadata_time
+                    total_calls += result.calls_time
+                    parsed_count += 1
+                elif result.status == "skipped":
+                    skipped_count += 1
+                else:
+                    failed_count += 1
+
+            print(
+                f"[SCAN] Files parsed: {parsed_count} | Files skipped: {skipped_count} | Files failed: {failed_count}"
+            )
+            entity_count, call_count, unmatched_count = self._replace_project_entities(
+                files, extractions
+            )
+            return (
+                total_parse,
+                total_metadata,
+                total_calls,
+                parsed_count,
+                skipped_count,
+                failed_count,
+            )
+        finally:
+            if gc_was_enabled:
+                gc.enable()
+                gc.collect()
 
     @staticmethod
     def _load_project_files(project_id: int) -> list[File]:
@@ -127,28 +177,44 @@ class CodeEntityPersistenceService:
     @classmethod
     def _extract_file(
         cls, source_path: Path, source_file: File, files_by_path: dict[str, File]
-    ) -> FileExtraction:
+    ) -> FileExtractionResult:
         """Parse one source file without allowing malformed files to block a scan."""
         try:
             language = ParserService.detect_language(source_path)
             if language not in _SUPPORTED_LANGUAGES:
-                return FileExtraction([], [], [], [])
+                return FileExtractionResult(FileExtraction([], [], [], []), 0.0, 0.0, 0.0, "skipped", None)
             if source_path.stat().st_size > 5 * 1024 * 1024:
                 raise SourceFileTooLargeError("Source file exceeds the 5 MB parser limit.")
             source = source_path.read_bytes()
+
+            # Tree-sitter parse
+            t0 = perf_counter()
             tree = ParserService._parser_for(source_path.suffix.lower()).parse(source)
+            t_parse = perf_counter() - t0
+
+            # Metadata extraction
+            t0 = perf_counter()
+            entities = cls._extract_entities(tree, source)
+            imports = cls._extract_imports(
+                tree, source, language, source_file, files_by_path
+            )
+            t_metadata = perf_counter() - t0
+
+            # Calls extraction
+            t0 = perf_counter()
+            calls = cls._extract_calls(tree, source, entities)
+            call_chains = cls._extract_call_chains(tree, source)
+            t_calls = perf_counter() - t0
+
         except (OSError, UnsupportedLanguageError, SourceFileTooLargeError) as error:
             logger.info("Skipping entity extraction for %s: %s", source_path, error)
-            return FileExtraction([], [], [], [])
+            return FileExtractionResult(FileExtraction([], [], [], []), 0.0, 0.0, 0.0, "skipped", None)
         except ParserDependencyError:
             raise
         except Exception:
             logger.exception("Tree-sitter could not parse %s", source_path)
-            return FileExtraction([], [], [], [])
+            return FileExtractionResult(FileExtraction([], [], [], []), 0.0, 0.0, 0.0, "failed", None)
 
-        entities = cls._extract_entities(tree.root_node, source)
-        calls = cls._extract_calls(tree.root_node, source, entities)
-        call_chains = cls._extract_call_chains(tree.root_node, source)
         print(f"Total CALLS extracted in {source_file.path}:", len(calls))
         logger.debug(
             "Tree-sitter extracted %s calls and %s chain edges from %s",
@@ -156,13 +222,18 @@ class CodeEntityPersistenceService:
             len(call_chains),
             source_file.path,
         )
-        imports = cls._extract_imports(
-            tree.root_node, source, language, source_file, files_by_path
+        return FileExtractionResult(
+            FileExtraction(entities, calls, call_chains, imports),
+            t_parse,
+            t_metadata,
+            t_calls,
+            "success",
+            tree
         )
-        return FileExtraction(entities, calls, call_chains, imports)
 
     @staticmethod
-    def _extract_entities(root_node, source: bytes) -> list[ExtractedEntity]:
+    def _extract_entities(tree, source: bytes) -> list[ExtractedEntity]:
+        root_node = tree.root_node if hasattr(tree, "root_node") else tree
         found: set[tuple[str, str, int, int]] = set()
 
         def add(node, entity_type: str, name_node=None) -> None:
@@ -171,7 +242,7 @@ class CodeEntityPersistenceService:
                 return
             name = CodeEntityPersistenceService._node_text(name_node, source)
             if name:
-                found.add((name, entity_type, node.start_point.row + 1, node.end_point.row + 1))
+                found.add((name, entity_type, node.start_point[0] + 1, node.end_point[0] + 1))
                 if entity_type == "function":
                     print("Function found:", name)
 
@@ -204,12 +275,15 @@ class CodeEntityPersistenceService:
                 visit(child, export_context)
 
         visit(root_node)
+        # Prevent garbage collection of the tree
+        _ = tree
         return [ExtractedEntity(*entity) for entity in sorted(found)]
 
     @classmethod
     def _extract_calls(
-        cls, root_node, source: bytes, entities: list[ExtractedEntity]
+        cls, tree, source: bytes, entities: list[ExtractedEntity]
     ) -> list[ExtractedCall]:
+        root_node = tree.root_node if hasattr(tree, "root_node") else tree
         functions = [entity for entity in entities if entity.entity_type == "function"]
         calls: list[ExtractedCall] = []
         seen_call_nodes: set[tuple[int, int]] = set()
@@ -241,11 +315,15 @@ class CodeEntityPersistenceService:
                 visit(child)
 
         visit(root_node)
+        # Prevent garbage collection of the tree
+        _ = tree
         return calls
 
     @classmethod
-    def _extract_call_chains(cls, root_node, source: bytes) -> list[ExtractedCallChain]:
-        """Extract adjacent calls from fluent member chains in source order."""
+    def _extract_call_chains(
+        cls, tree, source: bytes
+    ) -> list[ExtractedCallChain]:
+        root_node = tree.root_node if hasattr(tree, "root_node") else tree
         chains: list[ExtractedCallChain] = []
 
         def visit(node) -> None:
@@ -277,6 +355,8 @@ class CodeEntityPersistenceService:
                         )
 
         visit(root_node)
+        # Prevent garbage collection of the tree
+        _ = tree
         return chains
 
     @classmethod
@@ -320,8 +400,8 @@ class CodeEntityPersistenceService:
                 entity
                 for entity in functions
                 if entity.name == name
-                and entity.start_line == node.start_point.row + 1
-                and entity.end_line == node.end_point.row + 1
+                and entity.start_line == node.start_point[0] + 1
+                and entity.end_line == node.end_point[0] + 1
             ),
             None,
         )
@@ -351,12 +431,13 @@ class CodeEntityPersistenceService:
     @classmethod
     def _extract_imports(
         cls,
-        root_node,
+        tree,
         source: bytes,
         language: str,
         source_file: File,
         files_by_path: dict[str, File],
     ) -> list[ImportBinding]:
+        root_node = tree.root_node if hasattr(tree, "root_node") else tree
         bindings: list[ImportBinding] = []
 
         def resolve(module: str, local_name: str, target_name: str | None, is_namespace: bool) -> None:
@@ -377,6 +458,8 @@ class CodeEntityPersistenceService:
                 visit(child)
 
         visit(root_node)
+        # Prevent garbage collection of the tree
+        _ = tree
         return bindings
 
     @classmethod
@@ -472,6 +555,22 @@ class CodeEntityPersistenceService:
                         stored[(file_id, entity)] = record
                 session.flush()
 
+                # Query all function entities for this project's files once.
+                # Note: after session.flush(), the newly added functions are also in the DB / transaction.
+                all_functions = session.scalars(
+                    select(CodeEntity)
+                    .where(
+                        CodeEntity.file_id.in_(file_ids),
+                        CodeEntity.entity_type == "function",
+                    )
+                    .order_by(CodeEntity.start_line)
+                ).all() if file_ids else []
+
+                # Build a mapping from (file_id, function_name) -> list of CodeEntity
+                function_map: dict[tuple[int, str], list[CodeEntity]] = {}
+                for entity in all_functions:
+                    function_map.setdefault((entity.file_id, entity.name), []).append(entity)
+
                 function_by_file_and_name: dict[tuple[int, str], list[CodeEntity]] = {}
                 for record in stored.values():
                     if record.entity_type == "function":
@@ -489,7 +588,7 @@ class CodeEntityPersistenceService:
                             source.id
                             if source is not None and source.file_id == file_id
                             else cls._find_function_entity_id(
-                                session, call.caller.name, None, file_id, {}
+                                session, call.caller.name, None, file_id, {}, function_map
                             )
                         )
                         target_id = cls._find_function_entity_id(
@@ -498,6 +597,7 @@ class CodeEntityPersistenceService:
                             call.object_name,
                             file_id,
                             imports,
+                            function_map,
                         )
                         if target_id is None:
                             target = cls._resolve_call_target(
@@ -516,6 +616,7 @@ class CodeEntityPersistenceService:
                             None,
                             file_id,
                             {},
+                            function_map,
                         )
                         target_id = cls._find_function_entity_id(
                             session,
@@ -523,6 +624,7 @@ class CodeEntityPersistenceService:
                             chain.target_object_name,
                             file_id,
                             imports,
+                            function_map,
                         )
                         if source_id is None or target_id is None:
                             unmatched_count += 1
@@ -584,12 +686,18 @@ class CodeEntityPersistenceService:
         object_name: str | None,
         file_id: int,
         imports: dict[str, ImportBinding],
+        function_map: dict[tuple[int, str], list[CodeEntity]] = None,
     ) -> int | None:
         """Look up the persisted entity ID for a parsed direct or member call."""
         target_name, target_file_id = cls._reference_target(
             function_name, object_name, file_id, imports
         )
         if target_name is None:
+            return None
+        if function_map is not None:
+            candidates = function_map.get((target_file_id, target_name), [])
+            if candidates:
+                return candidates[0].id
             return None
         return session.scalar(
             select(CodeEntity.id)

@@ -20,6 +20,12 @@ export interface GitHubCloneResponse {
   ignored_files: number;
 }
 
+export interface ProjectDeleteResponse {
+  success: boolean;
+  message: string;
+  project_id: number;
+}
+
 const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -39,6 +45,10 @@ export function getProjects(signal?: AbortSignal) {
 
 export function scanProject(projectId: number) {
   return request(`/api/v1/projects/${projectId}/scan`, { method: "POST" });
+}
+
+export function deleteProject(projectId: number) {
+  return request<ProjectDeleteResponse>(`/api/v1/projects/${projectId}`, { method: "DELETE" });
 }
 
 export function cloneGitHubProject(githubUrl: string) {

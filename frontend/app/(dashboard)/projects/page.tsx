@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ProjectEmpty } from "@/components/projects/ProjectEmpty";
 import { ProjectCloneDialog } from "@/components/projects/ProjectCloneDialog";
+import { ProjectDeleteDialog } from "@/components/projects/ProjectDeleteDialog";
 import { ProjectGrid } from "@/components/projects/ProjectGrid";
 import { ProjectHeader } from "@/components/projects/ProjectHeader";
 import { ProjectSearch } from "@/components/projects/ProjectSearch";
 import { ProjectStats } from "@/components/projects/ProjectStats";
-import { cloneGitHubProject, getProjects, scanProject, uploadProject } from "@/services/projects";
+import { cloneGitHubProject, deleteProject, getProjects, scanProject, uploadProject } from "@/services/projects";
 import type { Project } from "@/types/project";
 
 function ProjectSkeleton() {
@@ -22,6 +23,8 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanningProjectId, setScanningProjectId] = useState<number | null>(null);
+  const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<Project | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -68,6 +71,35 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleDeleteRequest = (project: Project) => {
+    setPendingDeleteProject(project);
+  };
+
+  const handleDeleteCancel = () => {
+    if (deletingProjectId === null) {
+      setPendingDeleteProject(null);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteProject) return;
+    const target = pendingDeleteProject;
+    setDeletingProjectId(target.id);
+    setToast(null);
+    try {
+      await deleteProject(target.id);
+      // Optimistically remove from local state — no need to reload all projects.
+      setProjects((previous) => previous.filter((p) => p.id !== target.id));
+      setPendingDeleteProject(null);
+      setToast({ message: `"${target.name}" was deleted successfully.`, tone: "success" });
+    } catch (requestError) {
+      setToast({ message: requestError instanceof Error ? requestError.message : "Could not delete this project.", tone: "error" });
+      // Keep the dialog open so the user can retry or cancel.
+    } finally {
+      setDeletingProjectId(null);
+    }
+  };
+
   const handleUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".zip")) {
       setToast({ message: "Select a ZIP archive to upload.", tone: "error" });
@@ -108,8 +140,15 @@ export default function ProjectsPage() {
       <ProjectHeader isUploading={isUploading} uploadProgress={uploadProgress} onUpload={(file) => void handleUpload(file)} onOpenCloneDialog={() => setIsCloneDialogOpen(true)} />
       <ProjectStats projects={projects} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><ProjectSearch value={search} onChange={setSearch} /><p className="text-sm text-slate-500">{filteredProjects.length} {filteredProjects.length === 1 ? "project" : "projects"}</p></div>
-      {isLoading ? <ProjectSkeleton /> : error ? <section className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6"><div className="flex gap-3"><AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-300" /><div><h2 className="font-semibold text-rose-100">Projects could not be loaded</h2><p className="mt-1 text-sm text-rose-200/80">{error}</p><button type="button" onClick={() => void loadProjects()} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-rose-100 hover:text-white"><RefreshCw className="size-4" /> Try again</button></div></div></section> : filteredProjects.length ? <ProjectGrid projects={filteredProjects} scanningProjectId={scanningProjectId} onScan={handleScan} /> : <ProjectEmpty hasSearch={Boolean(search)} />}
+      {isLoading ? <ProjectSkeleton /> : error ? <section className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-6"><div className="flex gap-3"><AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-300" /><div><h2 className="font-semibold text-rose-100">Projects could not be loaded</h2><p className="mt-1 text-sm text-rose-200/80">{error}</p><button type="button" onClick={() => void loadProjects()} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-rose-100 hover:text-white"><RefreshCw className="size-4" /> Try again</button></div></div></section> : filteredProjects.length ? <ProjectGrid projects={filteredProjects} scanningProjectId={scanningProjectId} deletingProjectId={deletingProjectId} onScan={handleScan} onDelete={handleDeleteRequest} /> : <ProjectEmpty hasSearch={Boolean(search)} />}
       <ProjectCloneDialog isOpen={isCloneDialogOpen} isSubmitting={isCloning} onClose={() => setIsCloneDialogOpen(false)} onSubmit={(githubUrl) => void handleClone(githubUrl)} />
+      <ProjectDeleteDialog
+        projectName={pendingDeleteProject?.name ?? ""}
+        isOpen={pendingDeleteProject !== null}
+        isDeleting={deletingProjectId !== null}
+        onClose={handleDeleteCancel}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
       {toast && <div role="status" className={`fixed bottom-5 right-5 z-[60] max-w-sm rounded-lg border px-4 py-3 text-sm shadow-xl ${toast.tone === "success" ? "border-cyan-400/25 bg-[#10232c] text-cyan-100" : "border-rose-400/25 bg-[#2a151c] text-rose-100"}`}>{toast.message}</div>}
     </div>
   );

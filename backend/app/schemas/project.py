@@ -19,3 +19,11 @@ class ProjectListResponse(BaseModel):
     """Collection of registered projects."""
 
     projects: list[ProjectListItem]
+
+
+class ProjectDeleteResponse(BaseModel):
+    """Response returned after a project is successfully deleted."""
+
+    success: bool = True
+    message: str
+    project_id: int

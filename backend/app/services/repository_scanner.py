@@ -129,43 +129,111 @@ class RepositoryScanner:
     def scan_project(self, project_id: int) -> RepositoryScanResult:
         """Scan a persisted project's repository and synchronize its file inventory."""
         started_at = perf_counter()
-        logger.debug("Loading project %s...", project_id)
+        logger.info("[SCAN] Starting project %s", project_id)
+
+        # 1. Repository discovery
+        discovery_start = perf_counter()
         repository_path = self._project_repository_path(project_id)
-        logger.debug("Repository found: %s", repository_path)
-        logger.debug("Scanning repository...")
+        discovery_time = perf_counter() - discovery_start
+        logger.info("[SCAN] Repository discovery: %.2fs", discovery_time)
+
+        # 2. File scanning
+        scan_start = perf_counter()
         scanned_files, ignored_files = self._scan_directory(repository_path)
-        logger.debug("Found %s files.", len(scanned_files))
+        scan_time = perf_counter() - scan_start
+        logger.info("[SCAN] File scanning: %.2fs", scan_time)
+        logger.info("[SCAN] Total files found: %s", len(scanned_files))
+
         result = RepositoryScanResult(
             total_files=len(scanned_files),
             supported_files=sum(file.is_supported for file in scanned_files),
             ignored_files=ignored_files,
-            scan_time_ms=round((perf_counter() - started_at) * 1000),
+            scan_time_ms=0,
         )
-        self._save_file_inventory(project_id, scanned_files, result)
+
+        # 3. PostgreSQL synchronization
+        pg_sync_start = perf_counter()
+        changes = self._save_file_inventory(project_id, scanned_files, result)
+        pg_sync_time = perf_counter() - pg_sync_start
+        logger.info("[SCAN] PostgreSQL synchronization: %.2fs", pg_sync_time)
+
+        has_changes = any(changes.values())
+        if not has_changes:
+            logger.info("[SCAN] No changes detected. Skipping relationship, entity extraction, and Neo4j synchronization.")
+            total_scan_time_ms = round((perf_counter() - started_at) * 1000)
+            result = RepositoryScanResult(
+                total_files=result.total_files,
+                supported_files=result.supported_files,
+                ignored_files=result.ignored_files,
+                scan_time_ms=total_scan_time_ms,
+            )
+            # Re-save metadata with updated scan_time_ms
+            with SessionLocal() as session:
+                self._upsert_scan_metadata(session, project_id, result)
+                session.commit()
+
+            logger.info("[SCAN] Total scan time: %.2fs", total_scan_time_ms / 1000)
+            logger.info("[SCAN] Files parsed: 0")
+            logger.info("[SCAN] Files skipped: %d", result.supported_files)
+            logger.info("[SCAN] Files failed: 0")
+            logger.info("Scan complete for project %s.", project_id)
+            return result
+
+        # Compute file mtimes
+        file_mtimes = {file.relative_path: file.last_modified.timestamp() for file in scanned_files}
+
+        # 4. Relationship persistence
+        relationships_start = perf_counter()
         try:
-            RelationshipPersistenceService().extract_and_store(project_id, repository_path)
+            RelationshipPersistenceService().extract_and_store(project_id, repository_path, file_mtimes)
         except RelationshipPersistenceError as error:
             logger.exception("Failed to persist relationships for project %s", project_id)
             raise RepositoryScanError("Could not store extracted code relationships.") from error
+        relationships_time = perf_counter() - relationships_start
+        # (Included in total scan time, no separate log required as per prompt, but total includes it)
+
+        # 5. Entity persistence (Tree-sitter, Metadata, Calls extraction)
         try:
-            CodeEntityPersistenceService().extract_and_store(project_id, repository_path)
+            stats = CodeEntityPersistenceService().extract_and_store(
+                project_id, repository_path, file_mtimes
+            )
+            total_parse, total_metadata, total_calls, files_parsed, files_skipped, files_failed = stats
         except EntityPersistenceError as error:
             logger.exception("Failed to persist entities for project %s", project_id)
             raise RepositoryScanError("Could not store extracted code entities.") from error
+
+        logger.info("[SCAN] Tree-sitter parsing: %.2fs", total_parse)
+        logger.info("[SCAN] Metadata extraction: %.2fs", total_metadata)
+        logger.info("[SCAN] CALLS extraction: %.2fs", total_calls)
+
+        # 6. Neo4j persistence
+        neo4j_start = perf_counter()
         if os.getenv("SYNC_NEO4J_GRAPH", "false").lower() in {"1", "true", "yes"}:
             try:
                 Neo4jGraphPersistenceService().sync_project(project_id)
             except Neo4jGraphPersistenceError as error:
                 logger.exception("Failed to synchronize Neo4j graph for project %s", project_id)
                 raise RepositoryScanError("Could not synchronize the project graph to Neo4j.") from error
-        logger.info(
-            "Scanned project %s (%s files, %s supported, %s ignored) in %s ms",
-            project_id,
-            result.total_files,
-            result.supported_files,
-            result.ignored_files,
-            result.scan_time_ms,
+        neo4j_time = perf_counter() - neo4j_start
+        logger.info("[SCAN] Neo4j persistence: %.2fs", neo4j_time)
+
+        total_scan_time_ms = round((perf_counter() - started_at) * 1000)
+        logger.info("[SCAN] Total scan time: %.2fs", total_scan_time_ms / 1000)
+        logger.info("[SCAN] Files parsed: %d", files_parsed)
+        logger.info("[SCAN] Files skipped: %d", files_skipped)
+        logger.info("[SCAN] Files failed: %d", files_failed)
+
+        result = RepositoryScanResult(
+            total_files=result.total_files,
+            supported_files=result.supported_files,
+            ignored_files=result.ignored_files,
+            scan_time_ms=total_scan_time_ms,
         )
+        # Update metadata table with actual scan time
+        with SessionLocal() as session:
+            self._upsert_scan_metadata(session, project_id, result)
+            session.commit()
+
         logger.info("Scan complete for project %s.", project_id)
         return result
 
@@ -244,7 +312,7 @@ class RepositoryScanner:
         project_id: int,
         scanned_files: list[ScannedFile],
         result: RepositoryScanResult,
-    ) -> None:
+    ) -> dict[str, set[str]]:
         """Atomically synchronize the project's persisted file inventory by path."""
         session = SessionLocal()
 
@@ -267,6 +335,8 @@ class RepositoryScanner:
             }
             inserted_rows = 0
             updated_rows = 0
+            inserted_paths: set[str] = set()
+            updated_paths: set[str] = set()
 
             for scanned_file in sorted(
                 scanned_files, key=lambda file: file.relative_path
@@ -282,10 +352,13 @@ class RepositoryScanner:
                         )
                     )
                     inserted_rows += 1
+                    inserted_paths.add(scanned_file.relative_path)
                 elif RepositoryScanner._update_file_record(existing_file, scanned_file):
                     updated_rows += 1
+                    updated_paths.add(scanned_file.relative_path)
 
             # Entries left after reconciliation no longer exist in the repository.
+            deleted_paths = set(existing_by_path.keys())
             for removed_file in existing_by_path.values():
                 session.delete(removed_file)
             deleted_rows = len(existing_by_path)
@@ -305,6 +378,11 @@ class RepositoryScanner:
             logger.debug(
                 "Session transaction active after commit: %s", session.in_transaction()
             )
+            return {
+                "inserted": inserted_paths,
+                "updated": updated_paths,
+                "deleted": deleted_paths,
+            }
 
         except SQLAlchemyError as error:
             logger.exception("Commit failure while saving project %s file inventory", project_id)
