@@ -22,7 +22,7 @@ class RelationshipExtractor:
         symbols: SymbolResponse,
     ) -> list[Relationship]:
         """Return supported relationships without persisting analysis output."""
-        if language not in {"JavaScript", "TypeScript"}:
+        if language not in {"JavaScript", "TypeScript", "Python"}:
             return []
         if not isinstance(source, bytes):
             raise TypeError("source must be provided as UTF-8 encoded bytes.")
@@ -32,7 +32,10 @@ class RelationshipExtractor:
 
         self._extract_imports(source_file, symbols, relationships, seen)
         self._extract_exports(source_file, symbols, relationships, seen)
-        self._visit_javascript(root_node, source, source_file, relationships, seen)
+        if language == "Python":
+            self._visit_python(root_node, source, source_file, relationships, seen)
+        else:
+            self._visit_javascript(root_node, source, source_file, relationships, seen)
         return relationships
 
     def _visit_javascript(
@@ -208,3 +211,116 @@ class RelationshipExtractor:
         if key not in seen:
             seen.add(key)
             relationships.append(Relationship(**dict(zip(("source", "target", "relationship"), key))))
+
+    def _visit_python(
+        self,
+        node: Node,
+        source: bytes,
+        source_file: str,
+        relationships: list[Relationship],
+        seen: set[tuple[str, str, str]],
+    ) -> None:
+        """Recursively traverse Python AST nodes for structural relationships."""
+        if node.type == "call":
+            self._extract_python_calls(node, source, source_file, relationships, seen)
+        elif node.type == "class_definition":
+            self._extract_python_extends(node, source, relationships, seen)
+            self._extract_python_class_relationships(node, source, relationships, seen)
+
+        for child in node.named_children:
+            self._visit_python(child, source, source_file, relationships, seen)
+
+    def _extract_python_calls(
+        self,
+        node: Node,
+        source: bytes,
+        source_file: str,
+        relationships: list[Relationship],
+        seen: set[tuple[str, str, str]],
+    ) -> None:
+        """Create a CALLS relationship for one Python call expression."""
+        function = node.child_by_field_name("function")
+        target = self._python_call_target(function, source)
+        if target is None or target in self._IGNORED_CALL_TARGETS:
+            return
+
+        self._add_relationship(
+            relationships,
+            seen,
+            source=source_file,
+            target=target,
+            relationship="CALLS",
+        )
+
+    def _python_call_target(self, node: Node | None, source: bytes) -> str | None:
+        """Return target callable name for Python identifiers and attribute calls."""
+        if node is None:
+            return None
+        if node.type == "identifier":
+            return self._node_text(node, source)
+        if node.type == "attribute":
+            attribute_node = node.child_by_field_name("attribute")
+            if attribute_node is not None:
+                return self._node_text(attribute_node, source)
+        return None
+
+    def _extract_python_extends(
+        self,
+        node: Node,
+        source: bytes,
+        relationships: list[Relationship],
+        seen: set[tuple[str, str, str]],
+    ) -> None:
+        """Create an EXTENDS relationship for a Python class's direct superclasses."""
+        class_name = self._declaration_name(node, source)
+        if class_name is None:
+            return
+        argument_list = node.child_by_field_name("superclasses") or next(
+            (child for child in node.named_children if child.type == "argument_list"),
+            None,
+        )
+        if argument_list is not None:
+            for arg in argument_list.named_children:
+                base_name = self._node_text(arg, source)
+                if base_name:
+                    self._add_relationship(
+                        relationships,
+                        seen,
+                        source=class_name,
+                        target=base_name,
+                        relationship="EXTENDS",
+                    )
+
+    def _extract_python_class_relationships(
+        self,
+        node: Node,
+        source: bytes,
+        relationships: list[Relationship],
+        seen: set[tuple[str, str, str]],
+    ) -> None:
+        """Create HAS_METHOD relationships for a Python class definition."""
+        class_name = self._declaration_name(node, source)
+        if class_name is None:
+            return
+        body = node.child_by_field_name("body")
+        if body is None:
+            return
+
+        def find_methods(current_node) -> None:
+            if current_node.type == "function_definition":
+                method_name = self._declaration_name(current_node, source)
+                if method_name is not None:
+                    self._add_relationship(
+                        relationships,
+                        seen,
+                        source=class_name,
+                        target=method_name,
+                        relationship="HAS_METHOD",
+                    )
+            if current_node.type == "class_definition" and current_node != node:
+                return
+            for child in current_node.named_children:
+                find_methods(child)
+
+        find_methods(body)
+

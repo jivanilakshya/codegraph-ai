@@ -29,12 +29,10 @@ body {
 
 .landing-shell {
   position: relative;
-  display: grid;
-  min-height: 100svh;
-  place-items: center;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
-  padding: 2rem;
   background:
     radial-gradient(circle at 50% 50%, rgba(13, 55, 90, 0.25), transparent 38%),
     var(--background);

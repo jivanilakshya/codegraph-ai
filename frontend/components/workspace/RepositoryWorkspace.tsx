@@ -38,6 +38,13 @@ export function RepositoryWorkspace({ projectId }: RepositoryWorkspaceProps) {
 
   useEffect(() => { void loadWorkspace(); }, [loadWorkspace]);
 
+  useEffect(() => {
+    localStorage.setItem("activeProjectId", String(projectId));
+    if (workspace?.name) {
+      localStorage.setItem("activeProjectName", workspace.name);
+    }
+  }, [projectId, workspace]);
+
   const handleSelectFile = async (file: RepositoryFile) => {
     setSelectedFile(file);
     setFileContent(null);

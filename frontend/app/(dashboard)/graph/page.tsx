@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertCircle, FolderTree, Menu, Network, RefreshCw, SearchX, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import { GraphInspector } from "@/components/graph/GraphInspector";
@@ -24,7 +25,11 @@ function toggleValue<T>(values: Set<T>, value: T) {
   return next;
 }
 
-export default function GraphPage() {
+function GraphPageInner() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [files, setFiles] = useState<RepositoryFile[]>([]);
@@ -63,10 +68,40 @@ export default function GraphPage() {
   }, []);
 
   useEffect(() => {
-    if (projects.length && !projects.some((project) => project.id === selectedProjectId)) {
-      setSelectedProjectId(projects[0].id);
+    if (isLoadingProjects || projects.length === 0) return;
+
+    let resolvedId: number | null = null;
+
+    // 1. URL search parameters
+    const urlProjectId = searchParams.get("projectId");
+    if (urlProjectId) {
+      const parsed = Number(urlProjectId);
+      if (Number.isInteger(parsed)) {
+        resolvedId = parsed;
+      }
     }
-  }, [projects, selectedProjectId]);
+
+    // 2. localStorage fallback
+    if (resolvedId === null) {
+      const localId = localStorage.getItem("activeProjectId");
+      if (localId) {
+        const parsed = Number(localId);
+        if (Number.isInteger(parsed)) {
+          resolvedId = parsed;
+        }
+      }
+    }
+
+    // Verify if resolved project ID actually exists in the fetched projects list
+    if (resolvedId !== null && projects.some((p) => p.id === resolvedId)) {
+      setSelectedProjectId(resolvedId);
+      localStorage.setItem("activeProjectId", String(resolvedId));
+      const name = projects.find((p) => p.id === resolvedId)?.name;
+      if (name) localStorage.setItem("activeProjectName", name);
+    } else {
+      setSelectedProjectId(null);
+    }
+  }, [projects, searchParams, isLoadingProjects]);
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -195,12 +230,21 @@ export default function GraphPage() {
   const handleProjectSelect = useCallback((projectId: number) => {
     graphRequest.current?.abort();
     setSelectedProjectId(projectId);
+    localStorage.setItem("activeProjectId", String(projectId));
+    const name = projects.find(p => p.id === projectId)?.name;
+    if (name) localStorage.setItem("activeProjectName", name);
+
+    // Update URL query parameters
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("projectId", String(projectId));
+    router.push(`${pathname}?${params.toString()}`);
+
     setFiles([]);
     setSelectedFileId(null);
     setGraph(null);
     setSelectedNodeId(null);
     setIsExplorerOpen(false);
-  }, []);
+  }, [projects, pathname, router, searchParams]);
 
   const refreshGraph = useCallback(() => setGraphRefresh((value) => value + 1), []);
 
@@ -216,6 +260,34 @@ export default function GraphPage() {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[#060a10] p-6">
         <StateCard icon={Network} title="No project available" message="Create or scan a project before opening its graph workspace." />
+      </div>
+    );
+  }
+
+  if (!selectedProjectId) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center bg-[#060a10] p-6 text-center">
+        <Network className="size-12 text-slate-600 animate-pulse" />
+        <h2 className="mt-4 text-lg font-semibold text-slate-300">No Active Project Selected</h2>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+          Please select a project to visualize its codebase knowledge graph.
+        </p>
+        <div className="mt-6 w-80">
+          <label className="sr-only" htmlFor="graph-no-project-select">Select a project</label>
+          <select
+            id="graph-no-project-select"
+            className="w-full rounded-md border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-500/60"
+            value=""
+            onChange={(event) => handleProjectSelect(Number(event.target.value))}
+          >
+            <option value="" disabled>Select a project</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id} className="bg-slate-950">
+                {project.name} (#{project.id})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     );
   }
@@ -396,6 +468,20 @@ export default function GraphPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function GraphPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[#060a10]">
+          <StateCard icon={RefreshCw} title="Loading graph workspace" message="Preparing your code visualization workspace…" loading />
+        </div>
+      }
+    >
+      <GraphPageInner />
+    </Suspense>
   );
 }
 

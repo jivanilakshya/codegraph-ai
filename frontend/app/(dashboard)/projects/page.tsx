@@ -90,6 +90,14 @@ export default function ProjectsPage() {
       await deleteProject(target.id);
       // Optimistically remove from local state — no need to reload all projects.
       setProjects((previous) => previous.filter((p) => p.id !== target.id));
+      
+      // If the deleted project was active, clear it from localStorage
+      const activeId = localStorage.getItem("activeProjectId");
+      if (activeId && Number(activeId) === target.id) {
+        localStorage.removeItem("activeProjectId");
+        localStorage.removeItem("activeProjectName");
+      }
+      
       setPendingDeleteProject(null);
       setToast({ message: `"${target.name}" was deleted successfully.`, tone: "success" });
     } catch (requestError) {

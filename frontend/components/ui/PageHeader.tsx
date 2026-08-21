@@ -4,7 +4,7 @@ type PageHeaderProps = {
   showStatusBadge?: boolean;
 };
 
-export function PageHeader({ title, description, showStatusBadge = true }: PageHeaderProps) {
+export function PageHeader({ title, description, showStatusBadge = false }: PageHeaderProps) {
   return (
     <header className="border-b border-slate-800 pb-6">
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-400">

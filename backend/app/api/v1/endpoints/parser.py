@@ -82,12 +82,12 @@ def _raw_ast_node_response(node) -> RawAstNode:
         start_byte=node.start_byte,
         end_byte=node.end_byte,
         start_point=AstPoint(
-            row=node.start_point[0],
-            column=node.start_point[1],
+            row=node.start_point.row,
+            column=node.start_point.column,
         ),
         end_point=AstPoint(
-            row=node.end_point[0],
-            column=node.end_point[1],
+            row=node.end_point.row,
+            column=node.end_point.column,
         ),
         children=[_raw_ast_node_response(child) for child in node.children],
     )

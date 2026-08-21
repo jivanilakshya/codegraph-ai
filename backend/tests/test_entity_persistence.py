@@ -126,5 +126,51 @@ class EntityPersistenceCallExtractionTests(unittest.TestCase):
         )
 
 
+class PythonExtractionTests(unittest.TestCase):
+    """Verify that Python code parser correctly extracts classes, methods, functions, and calls."""
+
+    def test_python_entity_extraction_distinguishes_functions_methods_and_classes(self) -> None:
+        source = (
+            b"class UserService:\n"
+            b"    def login(self):\n"
+            b"        authenticate()\n"
+            b"\n"
+            b"def authenticate():\n"
+            b"    pass\n"
+        )
+        tree = ParserService._parser_for(".py").parse(source)
+        entities = CodeEntityPersistenceService._extract_entities(tree.root_node, source)
+        
+        # Sort by start_line to get deterministic order for assertion
+        entities_list = sorted(entities, key=lambda e: (e.start_line, e.name))
+        self.assertEqual(
+            [(e.name, e.entity_type, e.start_line, e.end_line) for e in entities_list],
+            [
+                ("UserService", "class", 1, 3),
+                ("login", "function", 2, 3),
+                ("authenticate", "function", 5, 6),
+            ]
+        )
+
+    def test_python_call_extraction_links_caller_and_callee(self) -> None:
+        source = (
+            b"class UserService:\n"
+            b"    def login(self):\n"
+            b"        authenticate()\n"
+            b"\n"
+            b"def authenticate():\n"
+            b"    pass\n"
+        )
+        tree = ParserService._parser_for(".py").parse(source)
+        entities = CodeEntityPersistenceService._extract_entities(tree.root_node, source)
+        calls = CodeEntityPersistenceService._extract_calls(tree.root_node, source, entities)
+
+        self.assertEqual(
+            [(call.caller.name, call.callee_name, call.object_name) for call in calls],
+            [("login", "authenticate", None)]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
+

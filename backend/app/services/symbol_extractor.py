@@ -1,10 +1,16 @@
 """Reusable Tree-sitter symbol extraction service."""
 
+import re
 from collections.abc import Callable
 
 from tree_sitter import Node
 
 from app.schemas.symbols import SymbolResponse
+
+_PYTHON_FROM_IMPORT = re.compile(
+    r"^\s*from\s+(?P<module>[.\w]+)\s+import\s+(?P<members>.+?)\s*$", re.DOTALL
+)
+_PYTHON_IMPORT = re.compile(r"^\s*import\s+(?P<members>.+?)\s*$", re.DOTALL)
 
 
 class SymbolExtractor:
@@ -31,6 +37,8 @@ class SymbolExtractor:
         """Return the dedicated visitor for a supported extraction language."""
         if language in {"JavaScript", "TypeScript"}:
             return self._visit_javascript
+        if language == "Python":
+            return self._visit_python
         return None
 
     def _visit_javascript(self, node: Node, source: bytes, symbols: SymbolResponse) -> None:
@@ -216,3 +224,81 @@ class SymbolExtractor:
         """Append a unique, non-empty symbol to one response category."""
         if value and value not in target:
             target.append(value)
+
+    def _visit_python(self, node: Node, source: bytes, symbols: SymbolResponse) -> None:
+        """Recursively extract Python symbols using grammar node types."""
+        self._extract_python_node(node, source, symbols)
+        for child in node.named_children:
+            self._visit_python(child, source, symbols)
+
+    def _extract_python_node(
+        self, node: Node,
+        source: bytes,
+        symbols: SymbolResponse,
+    ) -> None:
+        """Dispatch extraction for one Python syntax node."""
+        if node.type in {"import_statement", "import_from_statement"}:
+            self._add_all(symbols.imports, self._python_import_names(node, source))
+        elif node.type == "class_definition":
+            self._add_node_name(symbols.classes, node, source)
+        elif node.type == "function_definition":
+            if self._is_inside_class(node):
+                self._add_node_name(symbols.methods, node, source)
+            else:
+                self._add_node_name(symbols.functions, node, source)
+        elif node.type == "assignment":
+            left = node.child_by_field_name("left")
+            if left is not None:
+                if left.type == "identifier":
+                    self._add_symbol(symbols.variables, self._node_text(left, source))
+                elif left.type in {"pattern_list", "tuple"}:
+                    for child in left.named_children:
+                        if child.type == "identifier":
+                            self._add_symbol(symbols.variables, self._node_text(child, source))
+
+    def _is_inside_class(self, node: Node) -> bool:
+        """Return True if a node is enclosed in a class definition."""
+        parent = node.parent
+        while parent is not None:
+            if parent.type == "class_definition":
+                return True
+            parent = parent.parent
+        return False
+
+    def _python_import_names(self, node: Node, source: bytes) -> list[str]:
+        """Extract imported symbol/module names from Python import statement."""
+        text = self._node_text(node, source).strip()
+        text = text.split("#", 1)[0].strip()
+        names: list[str] = []
+        if node.type == "import_statement":
+            for child in node.named_children:
+                if child.type == "aliased_import":
+                    alias = child.child_by_field_name("alias")
+                    if alias is not None:
+                        names.append(self._node_text(alias, source))
+                elif child.type == "dotted_name":
+                    names.append(self._node_text(child, source))
+        elif node.type == "import_from_statement":
+            children = node.named_children
+            if len(children) > 1:
+                for child in children[1:]:
+                    if child.type == "aliased_import":
+                        alias = child.child_by_field_name("alias")
+                        if alias is not None:
+                            names.append(self._node_text(alias, source))
+                    elif child.type == "dotted_name":
+                        names.append(self._node_text(child, source))
+        if not names:
+            from_match = _PYTHON_FROM_IMPORT.match(text)
+            if from_match is not None:
+                for member in from_match.group("members").strip("() ").split(","):
+                    parts = re.split(r"\s+as\s+", member.strip(), maxsplit=1)
+                    names.append(parts[-1].strip())
+            else:
+                import_match = _PYTHON_IMPORT.match(text)
+                if import_match is not None:
+                    for member in import_match.group("members").split(","):
+                        parts = re.split(r"\s+as\s+", member.strip(), maxsplit=1)
+                        names.append(parts[-1].strip())
+        return [n for n in names if n]
+
