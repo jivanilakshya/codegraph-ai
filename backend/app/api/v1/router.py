@@ -9,6 +9,7 @@ from app.api.v1.endpoints.projects import router as projects_router
 from app.api.v1.endpoints.repository_scanner import router as repository_scanner_router
 from app.api.v1.endpoints.upload import router as upload_router
 from app.api.v1.endpoints.workspace import router as workspace_router
+from app.api.v1.endpoints.chunks import router as chunks_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(github_router)
@@ -18,3 +19,4 @@ api_router.include_router(upload_router)
 api_router.include_router(repository_scanner_router)
 api_router.include_router(workspace_router)
 api_router.include_router(parser_router)
+api_router.include_router(chunks_router)

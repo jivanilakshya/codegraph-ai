@@ -15,12 +15,17 @@ services:
       REPOSITORY_PATH: ${REPOSITORY_PATH:-/repositories}
       GIT_PYTHON_GIT_EXECUTABLE: /usr/bin/git
       SYNC_NEO4J_GRAPH: "true"
+      # Step 2: embedding model — override to swap models without rebuilding
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-32}
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
       - ./uploads:/uploads
       - ./repositories:/repositories
+      # Persist Hugging Face model cache — avoids re-downloading on every rebuild
+      - hf_cache:/root/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,6 +108,8 @@ volumes:
   neo4j_data:
   neo4j_logs:
   ollama_models:
+  # Hugging Face model cache — populated on first embedding run, persisted across rebuilds
+  hf_cache:
 
 networks:
   codegraph-network:
