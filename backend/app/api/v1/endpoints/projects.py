@@ -104,6 +104,16 @@ def delete_project(project_id: int) -> ProjectDeleteResponse:
         )
 
     # ------------------------------------------------------------------ #
+    # 2b. Qdrant — delete all vectors scoped to this project             #
+    # ------------------------------------------------------------------ #
+    try:
+        from app.ai.vector_store import VectorStoreService
+        VectorStoreService().delete_project_vectors(project_id)
+        logger.info("Deleted Qdrant vectors for project %s", project_id)
+    except Exception as error:
+        logger.warning("Could not delete Qdrant vectors for project %s: %s", project_id, str(error))
+
+    # ------------------------------------------------------------------ #
     # 3. PostgreSQL — delete project row (cascades everything else)       #
     # ------------------------------------------------------------------ #
     try:

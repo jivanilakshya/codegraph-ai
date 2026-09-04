@@ -8,17 +8,15 @@ psycopg2-binary
 neo4j
 
 GitPython
+
 tree-sitter==0.21.3
 tree-sitter-python==0.21.0
 tree-sitter-javascript==0.21.0
 tree-sitter-typescript==0.21.0
-
-# Step 2: embedding generation (sentence-transformers pulls torch, transformers, huggingface-hub)
-# Step 2: embedding generation
---extra-index-url https://download.pytorch.org/whl/cu126
 
 torch==2.6.0
 sentence-transformers
 
 pytest
 pytest-asyncio
+qdrant-client

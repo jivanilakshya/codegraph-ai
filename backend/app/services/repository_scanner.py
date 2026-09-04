@@ -126,10 +126,10 @@ class RepositoryScanResult:
 class RepositoryScanner:
     """Recursively inventory project files without parsing their contents."""
 
-    def scan_project(self, project_id: int) -> RepositoryScanResult:
+    def scan_project(self, project_id: int, force_reindex: bool = False) -> RepositoryScanResult:
         """Scan a persisted project's repository and synchronize its file inventory."""
         started_at = perf_counter()
-        logger.info("[SCAN] Starting project %s", project_id)
+        logger.info("[SCAN] Starting project %s (force_reindex=%s)", project_id, force_reindex)
 
         # 1. Repository discovery
         discovery_start = perf_counter()
@@ -158,7 +158,7 @@ class RepositoryScanner:
         logger.info("[SCAN] PostgreSQL synchronization: %.2fs", pg_sync_time)
 
         has_changes = any(changes.values())
-        if not has_changes:
+        if not has_changes and not force_reindex:
             logger.info("[SCAN] No changes detected. Skipping relationship, entity extraction, and Neo4j synchronization.")
             total_scan_time_ms = round((perf_counter() - started_at) * 1000)
             result = RepositoryScanResult(
@@ -216,6 +216,17 @@ class RepositoryScanner:
                 raise RepositoryScanError("Could not synchronize the project graph to Neo4j.") from error
         neo4j_time = perf_counter() - neo4j_start
         logger.info("[SCAN] Neo4j persistence: %.2fs", neo4j_time)
+
+        # 7. Qdrant vector indexing
+        vector_start = perf_counter()
+        try:
+            from app.services.vector_indexing_service import VectorIndexingService
+            VectorIndexingService().index_project(project_id)
+        except Exception as error:
+            logger.exception("Failed to index code vectors in Qdrant for project %s", project_id)
+            raise RepositoryScanError("Could not index project code vectors.") from error
+        vector_time = perf_counter() - vector_start
+        logger.info("[SCAN] Qdrant vector indexing: %.2fs", vector_time)
 
         total_scan_time_ms = round((perf_counter() - started_at) * 1000)
         logger.info("[SCAN] Total scan time: %.2fs", total_scan_time_ms / 1000)
