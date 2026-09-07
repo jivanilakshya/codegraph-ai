@@ -12,6 +12,7 @@ from app.api.v1.endpoints.workspace import router as workspace_router
 from app.api.v1.endpoints.chunks import router as chunks_router
 from app.api.v1.endpoints.embeddings import router as embeddings_router
 from app.api.v1.endpoints.search import router as search_router
+from app.api.v1.endpoints.rag import router as rag_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(github_router)
@@ -24,4 +25,6 @@ api_router.include_router(parser_router)
 api_router.include_router(chunks_router)
 api_router.include_router(embeddings_router)
 api_router.include_router(search_router)
+api_router.include_router(rag_router)
+
 
