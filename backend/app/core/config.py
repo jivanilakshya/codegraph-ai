@@ -34,3 +34,15 @@ def get_database_url() -> str:
             f"({url.database!r} and {configured_database!r})."
         )
     return database_url
+
+
+def get_ollama_base_url() -> str:
+    """Return the configured Ollama service base URL."""
+    base_url = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_URL")
+    return base_url.rstrip("/") if base_url else "http://ollama:11434"
+
+
+def get_ollama_model() -> str:
+    """Return the default Ollama model name."""
+    return os.getenv("OLLAMA_MODEL") or "qwen2.5-coder:7b"
+
