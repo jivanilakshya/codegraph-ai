@@ -19,7 +19,7 @@ class LLMService:
         self,
         base_url: Optional[str] = None,
         default_model: Optional[str] = None,
-        timeout: float = 60.0,
+        timeout: float = 300.0,
     ):
         """Initialize the LLMService.
 
