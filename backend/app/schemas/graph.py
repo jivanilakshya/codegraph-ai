@@ -5,8 +5,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-GraphNodeType = Literal["file", "function", "class", "variable"]
-GraphRelationshipType = Literal["IMPORTS", "DECLARES", "CALLS"]
+GraphNodeType = Literal[
+    "project", "module", "file", "api_route", "function", "class", "method", "variable"
+]
+GraphRelationshipType = Literal[
+    "CONTAINS", "IMPORTS", "DECLARES", "CALLS", "EXTENDS", "HAS_METHOD", "HANDLES"
+]
 
 
 class GraphNode(BaseModel):
@@ -27,10 +31,11 @@ class GraphEdge(BaseModel):
 
 
 class ProjectGraphResponse(BaseModel):
-    """The complete bounded graph for one scanned project."""
+    """A bounded graph view for one scanned project."""
 
     nodes: list[GraphNode]
     edges: list[GraphEdge]
+    truncated: bool = False
 
 
 class GraphNodeSearchResponse(BaseModel):

@@ -5,13 +5,22 @@ import type { CodeGraphNode, GraphNodeType, GraphRelationshipType } from "@/type
 type GraphToolbarProps = {
   activeNodeTypes: Set<GraphNodeType>;
   activeRelationships: Set<GraphRelationshipType>;
+  canFocus: boolean;
+  focusError: string | null;
+  focusDepth: 1 | 2 | 3;
+  isFocused: boolean;
+  isFocusing: boolean;
   isRefreshing: boolean;
+  onFocusDepthChange: (depth: 1 | 2 | 3) => void;
+  onFocus: () => void;
+  onShowFullGraph: () => void;
   onFitView: () => void;
   onRefresh: () => void;
   onSearchResultSelect?: (node: CodeGraphNode) => void;
   onToggleNodeType: (type: GraphNodeType) => void;
   onToggleRelationship: (type: GraphRelationshipType) => void;
   query: string;
+  searchError: string | null;
   searchResults?: CodeGraphNode[];
   isSearching?: boolean;
   searchCount: number | null;
@@ -19,15 +28,23 @@ type GraphToolbarProps = {
 };
 
 const nodeTypes: { label: string; value: GraphNodeType }[] = [
+  { value: "project", label: "Project" },
+  { value: "module", label: "Modules" },
+  { value: "api_route", label: "Routes" },
   { value: "function", label: "Functions" },
   { value: "file", label: "Files" },
   { value: "class", label: "Classes" },
+  { value: "method", label: "Methods" },
   { value: "variable", label: "Variables" },
 ];
 
 const relationshipTypes: { label: string; value: GraphRelationshipType }[] = [
+  { value: "CONTAINS", label: "Contains" },
+  { value: "HANDLES", label: "Handles" },
   { value: "IMPORTS", label: "Imports" },
   { value: "CALLS", label: "Calls" },
+  { value: "EXTENDS", label: "Extends" },
+  { value: "HAS_METHOD", label: "Has methods" },
   { value: "DECLARES", label: "Declares" },
 ];
 
@@ -66,6 +83,14 @@ export function GraphToolbar({
   activeNodeTypes,
   activeRelationships,
   isRefreshing,
+  canFocus,
+  focusError,
+  focusDepth,
+  isFocused,
+  isFocusing,
+  onFocus,
+  onFocusDepthChange,
+  onShowFullGraph,
   isSearching = false,
   onFitView,
   onQueryChange,
@@ -74,6 +99,7 @@ export function GraphToolbar({
   onToggleNodeType,
   onToggleRelationship,
   query,
+  searchError,
   searchCount,
   searchResults = [],
 }: GraphToolbarProps) {
@@ -108,6 +134,8 @@ export function GraphToolbar({
               <div className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-xl shadow-slate-950/70">
                 {isSearching ? (
                   <p className="px-3 py-2 text-xs text-slate-500">Searching…</p>
+                ) : searchError ? (
+                  <p className="px-3 py-2 text-xs text-rose-300">{searchError}</p>
                 ) : searchResults.length ? (
                   searchResults.map((node) => (
                     <button
@@ -142,8 +170,30 @@ export function GraphToolbar({
           <div className="hidden h-6 w-px bg-slate-700/80 sm:block" />
 
           <ActionChip icon={Crosshair} label="Fit View" onClick={onFitView} />
+          <label className="flex h-8 items-center gap-1 rounded-md border border-slate-700/80 bg-slate-900/60 px-2 text-[11px] text-slate-300">
+            <span>Depth</span>
+            <select
+              aria-label="Focus depth"
+              value={focusDepth}
+              onChange={(event) => onFocusDepthChange(Number(event.target.value) as 1 | 2 | 3)}
+              className="bg-transparent text-[11px] font-medium text-slate-100 outline-none"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </label>
+          <ActionChip
+            disabled={!canFocus || isFocusing}
+            icon={Crosshair}
+            label="Focus"
+            onClick={onFocus}
+            spinning={isFocusing}
+          />
+          {isFocused ? <ActionChip icon={RefreshCw} label="Project View" onClick={onShowFullGraph} /> : null}
           <ActionChip icon={RefreshCw} label="Refresh" onClick={onRefresh} disabled={isRefreshing} spinning={isRefreshing} />
         </div>
+        {focusError ? <p className="mt-2 text-xs text-rose-300">{focusError}</p> : null}
       </div>
     </section>
   );

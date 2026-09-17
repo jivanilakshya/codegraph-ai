@@ -20,6 +20,8 @@ from app.schemas.rag import (
     RAGRetrievalResponse,
 )
 from app.services.llm_service import LLMService
+from app.services.project_scope_service import ProjectScopeService
+from app.services.project_scope_service import ProjectNotFoundError
 from app.services.rag_generation_service import (
     DEFAULT_SYSTEM_PROMPT,
     NO_RESULT_PROMPT_INSTRUCTION,
@@ -33,9 +35,9 @@ class TestRAGGenerationSchemas(unittest.TestCase):
 
     def test_valid_request(self):
         """Test valid RAGGenerationRequest with query."""
-        req = RAGGenerationRequest(query="Where is user authentication handled?")
+        req = RAGGenerationRequest(query="Where is user authentication handled?", project_id=93)
         self.assertEqual(req.query, "Where is user authentication handled?")
-        self.assertIsNone(req.project_id)
+        self.assertEqual(req.project_id, 93)
         self.assertEqual(req.top_k, 5)
         self.assertEqual(req.similarity_threshold, 0.0)
         self.assertIsNone(req.model)
@@ -70,31 +72,31 @@ class TestRAGGenerationSchemas(unittest.TestCase):
 
     def test_top_k_boundaries(self):
         """Test top_k validation limits (1 to 20)."""
-        req_min = RAGGenerationRequest(query="query", top_k=1)
+        req_min = RAGGenerationRequest(query="query", project_id=93, top_k=1)
         self.assertEqual(req_min.top_k, 1)
 
-        req_max = RAGGenerationRequest(query="query", top_k=20)
+        req_max = RAGGenerationRequest(query="query", project_id=93, top_k=20)
         self.assertEqual(req_max.top_k, 20)
 
         with self.assertRaises(ValidationError):
-            RAGGenerationRequest(query="query", top_k=0)
+            RAGGenerationRequest(query="query", project_id=93, top_k=0)
 
         with self.assertRaises(ValidationError):
-            RAGGenerationRequest(query="query", top_k=21)
+            RAGGenerationRequest(query="query", project_id=93, top_k=21)
 
     def test_similarity_threshold_boundaries(self):
         """Test similarity_threshold validation limits (0.0 to 1.0)."""
-        req_min = RAGGenerationRequest(query="query", similarity_threshold=0.0)
+        req_min = RAGGenerationRequest(query="query", project_id=93, similarity_threshold=0.0)
         self.assertEqual(req_min.similarity_threshold, 0.0)
 
-        req_max = RAGGenerationRequest(query="query", similarity_threshold=1.0)
+        req_max = RAGGenerationRequest(query="query", project_id=93, similarity_threshold=1.0)
         self.assertEqual(req_max.similarity_threshold, 1.0)
 
         with self.assertRaises(ValidationError):
-            RAGGenerationRequest(query="query", similarity_threshold=-0.1)
+            RAGGenerationRequest(query="query", project_id=93, similarity_threshold=-0.1)
 
         with self.assertRaises(ValidationError):
-            RAGGenerationRequest(query="query", similarity_threshold=1.1)
+            RAGGenerationRequest(query="query", project_id=93, similarity_threshold=1.1)
 
 
 class TestRAGGenerationService(unittest.TestCase):
@@ -103,9 +105,11 @@ class TestRAGGenerationService(unittest.TestCase):
     def setUp(self):
         self.mock_retrieval_service = MagicMock(spec=RAGRetrievalService)
         self.mock_llm_service = MagicMock(spec=LLMService)
+        self.mock_project_scope_service = MagicMock(spec=ProjectScopeService)
         self.service = RAGGenerationService(
             rag_retrieval_service=self.mock_retrieval_service,
             llm_service=self.mock_llm_service,
+            project_scope_service=self.mock_project_scope_service,
         )
 
         self.sample_retrieval_response = RAGRetrievalResponse(
@@ -177,6 +181,7 @@ class TestRAGGenerationService(unittest.TestCase):
 
         res = self.service.generate_answer(
             query="Where is user authentication handled?",
+            project_id=93,
             model="custom-coder:7b",
         )
 
@@ -194,6 +199,7 @@ class TestRAGGenerationService(unittest.TestCase):
 
         self.service.generate_answer(
             query="Where is user authentication handled?",
+            project_id=93,
             system_prompt="You are a strict security auditor.",
         )
 
@@ -216,7 +222,7 @@ class TestRAGGenerationService(unittest.TestCase):
             model="qwen2.5-coder:7b",
         )
 
-        res = self.service.generate_answer(query="Nonexistent feature")
+        res = self.service.generate_answer(query="Nonexistent feature", project_id=93)
 
         called_prompt = self.mock_llm_service.generate.call_args[1]["prompt"]
         self.assertIn(NO_RESULT_PROMPT_INSTRUCTION, called_prompt)
@@ -229,6 +235,18 @@ class TestRAGGenerationService(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.generate_answer(query="")
 
+    def test_missing_project_stops_before_retrieval(self):
+        """A nonexistent project is rejected before vector search or LLM generation."""
+        self.mock_project_scope_service.require_project.side_effect = ProjectNotFoundError(
+            "Project 999999 was not found."
+        )
+
+        with self.assertRaises(ProjectNotFoundError):
+            self.service.generate_answer(query="Explain authentication", project_id=999999)
+
+        self.mock_retrieval_service.retrieve.assert_not_called()
+        self.mock_llm_service.generate.assert_not_called()
+
     def test_whitespace_query_raises_value_error(self):
         """Test whitespace query string raises ValueError."""
         with self.assertRaises(ValueError):
@@ -239,7 +257,7 @@ class TestRAGGenerationService(unittest.TestCase):
         self.mock_retrieval_service.retrieve.side_effect = RuntimeError("Qdrant store unreachable")
 
         with self.assertRaises(RuntimeError) as ctx:
-            self.service.generate_answer(query="Test query")
+            self.service.generate_answer(query="Test query", project_id=93)
 
         self.assertIn("Qdrant store unreachable", str(ctx.exception))
 
@@ -249,7 +267,7 @@ class TestRAGGenerationService(unittest.TestCase):
         self.mock_llm_service.generate.side_effect = RuntimeError("Ollama connection refused")
 
         with self.assertRaises(RuntimeError) as ctx:
-            self.service.generate_answer(query="Test query")
+            self.service.generate_answer(query="Test query", project_id=93)
 
         self.assertIn("Ollama connection refused", str(ctx.exception))
 
@@ -324,6 +342,25 @@ class TestRAGGenerationAPI(unittest.TestCase):
         r4 = self.client.post("/api/v1/rag/generate", json={"query": "test", "top_k": 0})
         self.assertEqual(r4.status_code, 422)
 
+        # project_id is mandatory for generated answers
+        r5 = self.client.post("/api/v1/rag/generate", json={"query": "test"})
+        self.assertEqual(r5.status_code, 422)
+
+    @patch("app.api.v1.endpoints.rag.RAGGenerationService")
+    def test_generate_endpoint_missing_project_returns_404(self, mock_service_cls):
+        """A service-level project lookup failure is rendered as a client-safe 404."""
+        mock_service_cls.return_value.generate_answer.side_effect = ProjectNotFoundError(
+            "Project 999999 was not found."
+        )
+
+        response = self.client.post(
+            "/api/v1/rag/generate",
+            json={"query": "Explain authentication", "project_id": 999999},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Project 999999 was not found.")
+
     @patch("app.api.v1.endpoints.rag.RAGGenerationService")
     def test_generate_endpoint_service_error_500(self, mock_service_cls):
         """Test that internal service errors return 500 status code."""
@@ -333,7 +370,7 @@ class TestRAGGenerationAPI(unittest.TestCase):
 
         response = self.client.post(
             "/api/v1/rag/generate",
-            json={"query": "Explain authentication"},
+            json={"query": "Explain authentication", "project_id": 93},
         )
 
         self.assertEqual(response.status_code, 500)

@@ -1,4 +1,4 @@
-import { Box, FileCode2, FunctionSquare, Variable } from "lucide-react";
+import { Box, FileCode2, FolderTree, FunctionSquare, Layers, Radio, Variable } from "lucide-react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { memo } from "react";
 
@@ -15,9 +15,13 @@ export type FlowCodeGraphNodeData = {
 };
 
 const nodeAppearance: Record<GraphNodeType, { accent: string; icon: typeof FileCode2; label: string }> = {
+  project: { accent: "border-fuchsia-400/60 bg-fuchsia-400/10 text-fuchsia-100", icon: Layers, label: "Project" },
+  module: { accent: "border-sky-400/60 bg-sky-400/10 text-sky-100", icon: FolderTree, label: "Module" },
+  api_route: { accent: "border-rose-400/60 bg-rose-400/10 text-rose-100", icon: Radio, label: "API Route" },
   file: { accent: "border-blue-400/60 bg-blue-400/10 text-blue-200", icon: FileCode2, label: "File" },
   class: { accent: "border-violet-400/60 bg-violet-400/10 text-violet-200", icon: Box, label: "Class" },
   function: { accent: "border-emerald-400/60 bg-emerald-400/10 text-emerald-200", icon: FunctionSquare, label: "Function" },
+  method: { accent: "border-teal-400/60 bg-teal-400/10 text-teal-200", icon: FunctionSquare, label: "Method" },
   variable: { accent: "border-amber-400/60 bg-amber-400/10 text-amber-200", icon: Variable, label: "Variable" },
 };
 

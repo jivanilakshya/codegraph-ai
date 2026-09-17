@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional
+from typing import Generator, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -120,3 +120,94 @@ class LLMService:
             response=returned_text,
             model=returned_model,
         )
+
+    def generate_stream(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+    ) -> Generator[str, None, None]:
+        """Send prompt to Ollama LLM and stream generated text chunks incrementally.
+
+        Args:
+            prompt: Text prompt to generate completion for.
+            model: Optional model override. Defaults to self.default_model.
+
+        Yields:
+            Generated text chunks as they arrive from Ollama.
+
+        Raises:
+            ValueError: If prompt is empty or whitespace-only.
+            RuntimeError: If Ollama service is unreachable, returns HTTP error, or returns stream error.
+        """
+        if not prompt or not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("Prompt string cannot be empty or contain only whitespace.")
+
+        clean_prompt = prompt.strip()
+        target_model = (
+            model.strip()
+            if (model and isinstance(model, str) and model.strip())
+            else self.default_model
+        )
+
+        endpoint_url = f"{self.base_url}/api/generate"
+        payload = {
+            "model": target_model,
+            "prompt": clean_prompt,
+            "stream": True,
+        }
+
+        logger.info(
+            "Sending streaming LLM generation request to '%s' using model '%s'",
+            endpoint_url,
+            target_model,
+        )
+
+        request_bytes = json.dumps(payload).encode("utf-8")
+        req = Request(
+            endpoint_url,
+            data=request_bytes,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            response = urlopen(req, timeout=self.timeout)
+        except HTTPError as error:
+            logger.error("Ollama service returned HTTP error %s: %s", error.code, error.reason)
+            raise RuntimeError(
+                f"Ollama service error: HTTP {error.code} {error.reason}"
+            ) from error
+        except (URLError, TimeoutError, OSError) as error:
+            logger.error("Failed to connect to Ollama at '%s': %s", self.base_url, str(error))
+            raise RuntimeError(
+                f"Could not connect to Ollama service at '{self.base_url}': {str(error)}"
+            ) from error
+
+        try:
+            for raw_line in response:
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8").strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError) as parse_err:
+                    logger.warning("Failed to decode JSON stream line from Ollama: %s", parse_err)
+                    continue
+
+                if not isinstance(data, dict):
+                    continue
+
+                if "error" in data:
+                    logger.error("Ollama streaming error event: %s", data["error"])
+                    raise RuntimeError(f"Ollama stream error: {data['error']}")
+
+                token = data.get("response")
+                if token and isinstance(token, str):
+                    yield token
+
+                if data.get("done") is True:
+                    break
+        finally:
+            response.close()

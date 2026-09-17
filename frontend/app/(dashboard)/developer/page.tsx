@@ -186,7 +186,7 @@ export default function DeveloperPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-screen-2xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-8">
       <PageHeader title="Developer" description="Internal Developer Toolkit." />
       <SystemOverview health={health} isLoading={healthLoading} lastUpdated={lastUpdated} latencyMs={latencyMs} />
       <ProjectSelector onSelect={handleProjectSelect} projects={projects} selectedProjectId={selectedProjectId} />
@@ -200,6 +200,6 @@ export default function DeveloperPage() {
       <ApiTester fileId={selectedFile?.id ?? null} onRun={runEndpoint} projectId={selectedProjectId} />
       <DockerStatus />
       <HealthDashboard health={health} />
-    </main>
+    </div>
   );
 }

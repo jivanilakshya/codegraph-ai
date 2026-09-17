@@ -1,61 +1,51 @@
 "use client";
 
-import { Activity, FolderGit2, GitBranch, Network, RefreshCw, Plus, GitGraph, FolderOpen, Server, CheckCircle2, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Activity, FolderGit2, GitBranch, Network, RefreshCw, Plus, GitGraph, FolderOpen, Server, CheckCircle2, XCircle, MessageSquare, Code2, Boxes } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+
 import Link from "next/link";
 
 import { StatCard } from "@/components/ui/StatCard";
-import { getProjects } from "@/services/projects";
-import { getProjectGraphStats, getSystemHealth } from "@/services/developer";
-import type { Project } from "@/types/project";
-import type { HealthResponse } from "@/types/developer";
+import { useActiveProject } from "@/hooks/useActiveProject";
+import { ProjectSelector } from "@/components/developer/ProjectSelector";
+import type { HealthResponse, GraphStatsResponse } from "@/types/developer";
+import { getSystemHealth, getProjectGraphStats } from "@/services/developer";
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [totalNodes, setTotalNodes] = useState<number | null>(null);
+  const { projects, activeProjectId, activeProject, selectProject } = useActiveProject();
+  const [graphStats, setGraphStats] = useState<GraphStatsResponse | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [projectsResponse, healthResponse] = await Promise.all([
-        getProjects(),
-        getSystemHealth().catch(() => null),
-      ]);
+      const healthResponse = await getSystemHealth().catch(() => null);
+      if (healthResponse) setHealth(healthResponse.data);
 
-      const projectList = projectsResponse.projects;
-      setProjects(projectList);
-
-      if (healthResponse) {
-        setHealth(healthResponse.data);
-      }
-
-      // Fetch graph stats for each project concurrently
-      const statsPromises = projectList.map(async (project) => {
+      if (activeProjectId) {
         try {
-          const statsRes = await getProjectGraphStats(project.id);
-          return statsRes.data.nodes;
+          const statsRes = await getProjectGraphStats(activeProjectId);
+          setGraphStats(statsRes.data);
         } catch {
-          return 0;
+          setGraphStats(null);
         }
-      });
-
-      const nodesCounts = await Promise.all(statsPromises);
-      const sumNodes = nodesCounts.reduce((sum, count) => sum + count, 0);
-      setTotalNodes(sumNodes);
+      } else {
+        setGraphStats(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard data.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeProjectId]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const totalProjects = projects.length;
   const githubCount = projects.filter((p) => p.github_url).length;
@@ -99,6 +89,42 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Project selector */}
+      <ProjectSelector
+        onSelect={selectProject}
+        projects={projects}
+        selectedProjectId={activeProjectId}
+      />
+
+      {/* Active Project Banner */}
+      {activeProject && (
+        <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-cyan-400">Active Project</p>
+              <h2 className="mt-1 text-lg font-bold text-slate-100">{activeProject.name}</h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {activeProject.github_url || "ZIP Archive Upload"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href={`/graph?projectId=${activeProjectId}`}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-cyan-500/30 hover:text-cyan-100 transition-colors"
+              >
+                <GitGraph className="size-3.5" /> View Graph
+              </Link>
+              <Link
+                href={`/chat?projectId=${activeProjectId}`}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-cyan-500/30 hover:text-cyan-100 transition-colors"
+              >
+                <MessageSquare className="size-3.5" /> Ask Codebase
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards Section */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -112,23 +138,37 @@ export default function DashboardPage() {
           icon={GitBranch}
         />
         <StatCard
-          label="Graph Nodes Count"
-          value={isLoading || totalNodes === null ? "..." : String(totalNodes)}
+          label="Graph Nodes"
+          value={isLoading ? "..." : graphStats ? String(graphStats.nodes) : "—"}
           icon={Network}
         />
-        <article className="rounded-xl border border-slate-800 bg-slate-950/70 p-5 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-slate-400">Activity Logs</p>
-            <span className="rounded-lg border border-slate-800 bg-slate-950 p-2 text-slate-500">
-              <Activity className="size-4" />
-            </span>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-slate-700" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Future Feature</span>
-          </div>
-        </article>
+        <StatCard
+          label="Graph Edges"
+          value={isLoading ? "..." : graphStats ? String(graphStats.edges) : "—"}
+          icon={Activity}
+        />
       </section>
+
+      {/* Project-scoped Graph Breakdown */}
+      {activeProjectId && graphStats && (
+        <section className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Files Indexed"
+            value={String(graphStats.files)}
+            icon={FolderOpen}
+          />
+          <StatCard
+            label="Functions"
+            value={String(graphStats.functions)}
+            icon={Code2}
+          />
+          <StatCard
+            label="Classes"
+            value={String(graphStats.classes)}
+            icon={Boxes}
+          />
+        </section>
+      )}
 
       {/* Multi-column Panels */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -153,14 +193,22 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {projects.slice(0, 3).map((project) => (
+                {projects.slice(0, 5).map((project) => (
                   <div
                     key={project.id}
-                    className="group flex items-center justify-between p-3.5 rounded-lg border border-slate-800/80 bg-slate-950/65 hover:border-slate-700 hover:bg-slate-950 transition-colors"
+                    onClick={() => selectProject(project.id)}
+                    className={`group flex items-center justify-between p-3.5 rounded-lg border cursor-pointer transition-colors ${
+                      activeProjectId === project.id
+                        ? "border-cyan-500/30 bg-cyan-500/5"
+                        : "border-slate-800/80 bg-slate-950/65 hover:border-slate-700 hover:bg-slate-950"
+                    }`}
                   >
                     <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-slate-200 group-hover:text-slate-100 truncate">
                         {project.name}
+                        {activeProjectId === project.id && (
+                          <span className="ml-2 text-[10px] font-medium text-cyan-400 uppercase">Active</span>
+                        )}
                       </h3>
                       <p className="mt-0.5 text-xs text-slate-500 truncate max-w-md">
                         {project.github_url || "ZIP Archive Upload"}
@@ -171,6 +219,7 @@ export default function DashboardPage() {
                         href={`/projects/${project.id}`}
                         className="p-1.5 rounded text-slate-400 hover:bg-slate-900 hover:text-slate-200 transition-colors"
                         title="Browse Workspace Files"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <FolderOpen className="size-4" />
                       </Link>
@@ -178,6 +227,7 @@ export default function DashboardPage() {
                         href={`/graph?projectId=${project.id}`}
                         className="p-1.5 rounded text-slate-400 hover:bg-slate-900 hover:text-slate-200 transition-colors"
                         title="Visualize Knowledge Graph"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <GitGraph className="size-4" />
                       </Link>
@@ -191,7 +241,7 @@ export default function DashboardPage() {
           {/* Quick Actions Panel */}
           <section className="rounded-xl border border-slate-800 bg-slate-950/40 p-5 backdrop-blur-sm">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Quick Navigation</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               <Link
                 href="/projects"
                 className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-300 hover:border-cyan-500/20 hover:text-cyan-300 hover:bg-slate-900/40 transition-all text-center"
@@ -200,7 +250,7 @@ export default function DashboardPage() {
                 <span className="text-xs font-semibold">New Project</span>
               </Link>
               <Link
-                href="/graph"
+                href={activeProjectId ? `/graph?projectId=${activeProjectId}` : "/graph"}
                 className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-300 hover:border-cyan-500/20 hover:text-cyan-300 hover:bg-slate-900/40 transition-all text-center"
               >
                 <GitGraph className="size-5 mb-2" />
@@ -212,6 +262,13 @@ export default function DashboardPage() {
               >
                 <FolderOpen className="size-5 mb-2" />
                 <span className="text-xs font-semibold">Browse Repository</span>
+              </Link>
+              <Link
+                href={activeProjectId ? `/chat?projectId=${activeProjectId}` : "/chat"}
+                className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-300 hover:border-cyan-500/20 hover:text-cyan-300 hover:bg-slate-900/40 transition-all text-center"
+              >
+                <MessageSquare className="size-5 mb-2" />
+                <span className="text-xs font-semibold">Ask Codebase</span>
               </Link>
             </div>
           </section>

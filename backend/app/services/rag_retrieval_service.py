@@ -5,7 +5,7 @@ and structured context formatting for downstream LLM generation.
 """
 
 import logging
-from typing import List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.schemas.rag import RAGChunkResult, RAGRetrievalResponse
 from app.services.semantic_search_service import SemanticSearchService
@@ -36,26 +36,34 @@ class RAGRetrievalService:
         top_k: int = 5,
         project_id: Optional[int] = None,
         similarity_threshold: Optional[float] = None,
+        file_path: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        language: Optional[str] = None,
+        entity_type: Optional[str] = None,
     ) -> RAGRetrievalResponse:
         """Retrieve the most relevant code chunks for a user query, deduplicate, and format context.
 
         Flow:
             1. Validate query string and top_k parameters.
-            2. Call existing SemanticSearchService with the specified project_id and limit.
+            2. Call existing SemanticSearchService with optional metadata filters and limit.
             3. Preserve all structured chunk metadata (file_path, lines, bytes, language, entity, score, content).
-            4. Filter out chunks falling below the similarity score threshold.
+            4. Filter out chunks falling below the similarity score threshold or failing metadata scope constraints.
             5. Deduplicate exact duplicate code chunks while maintaining relevance order.
             6. Limit to top_k results.
-            7. Construct structured RAG context prompt.
+            7. Construct structured RAG context prompt and populated configuration metadata.
 
         Args:
             query: Natural language question or search query.
             top_k: Maximum number of relevant code chunks to return (1-20, default: 5).
             project_id: Optional project ID to restrict search.
             similarity_threshold: Optional minimum cosine similarity threshold (default: self.default_similarity_threshold).
+            file_path: Optional repository-relative file path filter.
+            entity_name: Optional code entity name filter.
+            language: Optional programming language filter.
+            entity_type: Optional entity type filter.
 
         Returns:
-            RAGRetrievalResponse with structured results and formatted context string.
+            RAGRetrievalResponse with structured results, applied filters, retrieval config, and formatted context.
 
         Raises:
             ValueError: If query or parameters are invalid.
@@ -79,60 +87,109 @@ class RAGRetrievalService:
 
         clean_query = query.strip()
         logger.info(
-            "Executing RAG retrieval for query '%s' (top_k=%d, project_id=%s, min_score=%.2f)",
+            "Executing RAG retrieval for query '%s' (top_k=%d, project_id=%s, min_score=%.2f, file_path=%s, entity_name=%s)",
             clean_query,
             top_k,
             project_id,
             effective_threshold,
+            file_path,
+            entity_name,
         )
+
+        # Build applied_filters map for provided filter values
+        applied_filters: Dict[str, Any] = {}
+        if project_id is not None:
+            applied_filters["project_id"] = project_id
+        if file_path is not None:
+            applied_filters["file_path"] = file_path
+        if entity_name is not None:
+            applied_filters["entity_name"] = entity_name
+        if language is not None:
+            applied_filters["language"] = language
+        if entity_type is not None:
+            applied_filters["entity_type"] = entity_type
+
+        # Build retrieval_config metadata
+        retrieval_config: Dict[str, Any] = {
+            "top_k": top_k,
+            "similarity_threshold": effective_threshold,
+            "project_id": project_id,
+            "filters": applied_filters,
+        }
 
         # 1. Fetch search results from existing SemanticSearchService
         # Fetch up to top_k (or slightly more to account for threshold / duplicate filtering)
         fetch_limit = min(max(top_k * 2, top_k), 20)
-        search_response = self.semantic_search_service.search(
-            query=clean_query,
-            limit=fetch_limit,
-            project_id=project_id,
-        )
+        search_kwargs: Dict[str, Any] = {
+            "query": clean_query,
+            "limit": fetch_limit,
+            "project_id": project_id,
+        }
+        if file_path is not None:
+            search_kwargs["file_path"] = file_path
+        if entity_name is not None:
+            search_kwargs["entity_name"] = entity_name
+        if language is not None:
+            search_kwargs["language"] = language
+        if entity_type is not None:
+            search_kwargs["entity_type"] = entity_type
+
+        search_response = self.semantic_search_service.search(**search_kwargs)
 
         # 2. Extract and preserve metadata
         extracted_chunks: List[RAGChunkResult] = []
         for item in search_response.results:
             meta = item.metadata or {}
 
-            file_path = meta.get("file_path")
+            file_path_val = meta.get("file_path")
             start_line = meta.get("start_line")
             end_line = meta.get("end_line")
             start_byte = meta.get("start_byte")
             end_byte = meta.get("end_byte")
-            language = meta.get("language")
-            entity_type = meta.get("entity_type")
-            name = meta.get("name")
-            proj_id = meta.get("project_id") or project_id
+            language_val = meta.get("language")
+            entity_type_val = meta.get("entity_type")
+            name_val = meta.get("name")
+            proj_id = meta.get("project_id")
 
             chunk_result = RAGChunkResult(
                 score=float(item.score),
-                file_path=file_path,
+                file_path=file_path_val,
                 start_line=start_line,
                 end_line=end_line,
                 start_byte=start_byte,
                 end_byte=end_byte,
-                language=language,
-                entity_type=entity_type,
-                name=name,
+                language=language_val,
+                entity_type=entity_type_val,
+                name=name_val,
+                entity_name=name_val,
                 project_id=proj_id,
                 content=item.content,
                 metadata=meta,
             )
             extracted_chunks.append(chunk_result)
 
-        # 3. Filter by similarity threshold & deduplicate while preserving relevance ordering
+        # 3. Filter by similarity threshold, metadata rules, & deduplicate while preserving relevance ordering
         seen_keys: Set[Tuple[Optional[str], Optional[int], Optional[int], str]] = set()
         filtered_chunks: List[RAGChunkResult] = []
 
         for chunk in extracted_chunks:
             # Check similarity threshold
             if chunk.score < effective_threshold:
+                continue
+
+            # Post-retrieval scope validation if specified
+            # Qdrant applies this same filter, but check the payload again before
+            # it can reach an LLM prompt.  This defends against malformed or
+            # incorrectly indexed vectors and preserves project isolation.
+            if project_id is not None and chunk.project_id != project_id:
+                continue
+            if file_path is not None and chunk.file_path != file_path:
+                continue
+            if entity_name is not None and (chunk.entity_name != entity_name and chunk.name != entity_name):
+                continue
+            if language is not None and chunk.language != language:
+                continue
+            if entity_type is not None and chunk.entity_type != entity_type:
                 continue
 
             # Deduplication key based on file location and code content
@@ -165,6 +222,8 @@ class RAGRetrievalService:
             project_id=project_id,
             total_results=len(filtered_chunks),
             results=filtered_chunks,
+            applied_filters=applied_filters,
+            retrieval_config=retrieval_config,
             context=context_str,
         )
 

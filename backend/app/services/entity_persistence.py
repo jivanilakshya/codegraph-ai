@@ -2,7 +2,7 @@
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
 
@@ -13,6 +13,7 @@ from app.database.postgres import SessionLocal
 from app.models.code_entity import CodeEntity
 from app.models.entity_relationship import EntityRelationship
 from app.models.file import File
+from app.schemas.relationships import Relationship
 from app.services.parser_service import (
     ParserDependencyError,
     ParserService,
@@ -20,6 +21,8 @@ from app.services.parser_service import (
     UnsupportedLanguageError,
 )
 from app.services.relationship_persistence import RelationshipPersistenceService
+from app.services.relationship_extractor import RelationshipExtractor
+from app.schemas.symbols import SymbolResponse
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +84,7 @@ class FileExtraction:
     calls: list[ExtractedCall]
     call_chains: list[ExtractedCallChain]
     imports: list[ImportBinding]
+    semantic_relationships: list[Relationship] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -204,6 +208,17 @@ class CodeEntityPersistenceService:
             t0 = perf_counter()
             calls = cls._extract_calls(tree, source, entities)
             call_chains = cls._extract_call_chains(tree, source)
+            semantic_relationships = [
+                relationship
+                for relationship in RelationshipExtractor().extract(
+                    tree.root_node,
+                    source,
+                    language,
+                    source_file.path,
+                    SymbolResponse(),
+                )
+                if relationship.relationship in {"EXTENDS", "HAS_METHOD"}
+            ]
             t_calls = perf_counter() - t0
 
         except (OSError, UnsupportedLanguageError, SourceFileTooLargeError) as error:
@@ -223,7 +238,7 @@ class CodeEntityPersistenceService:
             source_file.path,
         )
         return FileExtractionResult(
-            FileExtraction(entities, calls, call_chains, imports),
+            FileExtraction(entities, calls, call_chains, imports, semantic_relationships),
             t_parse,
             t_metadata,
             t_calls,
@@ -572,9 +587,11 @@ class CodeEntityPersistenceService:
                     function_map.setdefault((entity.file_id, entity.name), []).append(entity)
 
                 function_by_file_and_name: dict[tuple[int, str], list[CodeEntity]] = {}
+                entities_by_file_and_name: dict[tuple[int, str], list[CodeEntity]] = {}
                 for record in stored.values():
                     if record.entity_type == "function":
                         function_by_file_and_name.setdefault((record.file_id, record.name), []).append(record)
+                    entities_by_file_and_name.setdefault((record.file_id, record.name), []).append(record)
 
                 call_count = 0
                 unmatched_count = 0
@@ -630,6 +647,42 @@ class CodeEntityPersistenceService:
                             unmatched_count += 1
                         else:
                             relationships.add((source_id, target_id, "CALLS"))
+                    for relationship in extraction.semantic_relationships:
+                        source_candidates = entities_by_file_and_name.get(
+                            (file_id, relationship.source), []
+                        )
+                        source = next(
+                            (
+                                entity
+                                for entity in source_candidates
+                                if entity.entity_type == "class"
+                            ),
+                            None,
+                        )
+                        target_file_id = file_id
+                        target_name = relationship.target
+                        binding = imports.get(target_name)
+                        if relationship.relationship == "EXTENDS" and binding is not None:
+                            target_file_id = binding.target_file_id
+                            target_name = binding.target_name or target_name
+                        target_candidates = entities_by_file_and_name.get(
+                            (target_file_id, target_name), []
+                        )
+                        expected_type = (
+                            "class" if relationship.relationship == "EXTENDS" else "function"
+                        )
+                        target = next(
+                            (
+                                entity
+                                for entity in target_candidates
+                                if entity.entity_type == expected_type
+                            ),
+                            None,
+                        )
+                        if source is not None and target is not None:
+                            relationships.add(
+                                (source.id, target.id, relationship.relationship)
+                            )
                 session.add_all(
                     EntityRelationship(
                         source_entity_id=source_id,

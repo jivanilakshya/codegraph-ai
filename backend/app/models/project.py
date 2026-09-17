@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
 
 if TYPE_CHECKING:
+    from app.models.conversation import Conversation
     from app.models.file import File
     from app.models.metadata import Metadata
 
@@ -43,3 +44,7 @@ class Project(Base):
     metadata_entries: Mapped[list["Metadata"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+

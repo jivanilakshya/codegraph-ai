@@ -9,6 +9,7 @@ from typing import Optional
 
 from app.schemas.rag import RAGGenerationResponse
 from app.services.llm_service import LLMService
+from app.services.project_scope_service import ProjectScopeService
 from app.services.rag_retrieval_service import RAGRetrievalService
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class RAGGenerationService:
         self,
         rag_retrieval_service: Optional[RAGRetrievalService] = None,
         llm_service: Optional[LLMService] = None,
+        project_scope_service: Optional[ProjectScopeService] = None,
     ):
         """Initialize the RAGGenerationService.
 
@@ -44,6 +46,7 @@ class RAGGenerationService:
         """
         self.rag_retrieval_service = rag_retrieval_service or RAGRetrievalService()
         self.llm_service = llm_service or LLMService()
+        self.project_scope_service = project_scope_service or ProjectScopeService()
 
     def generate_answer(
         self,
@@ -65,7 +68,7 @@ class RAGGenerationService:
 
         Args:
             query: User's natural language question.
-            project_id: Optional project ID to scope vector search.
+            project_id: Required project ID used to scope vector search.
             top_k: Maximum number of relevant code chunks to retrieve (1-20, default: 5).
             similarity_threshold: Minimum similarity threshold (0.0-1.0).
             model: Optional model override (defaults to configured model).
@@ -80,6 +83,8 @@ class RAGGenerationService:
         """
         if not query or not isinstance(query, str) or not query.strip():
             raise ValueError("Query string cannot be empty or contain only whitespace.")
+
+        self.project_scope_service.require_project(project_id)
 
         clean_query = query.strip()
         logger.info(

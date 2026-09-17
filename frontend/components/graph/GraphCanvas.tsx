@@ -102,6 +102,12 @@ function layoutModuleChildren(fileId: string, entities: CodeGraphNodeRecord[], e
 }
 
 function layoutFocusedGraph(inputNodes: CodeGraphNodeRecord[] = [], inputEdges: CodeGraphEdge[] = []): Node<FlowCodeGraphNodeData>[] {
+  // Architecture views need the explicit Project → Module → File chain to
+  // remain visible.  The compact file-frame layout is retained for focused
+  // code-only views, where declaration detail is more useful than hierarchy.
+  if (inputNodes.some((node) => node.type === "project" || node.type === "module")) {
+    return layoutStandaloneNodes(inputNodes, inputEdges);
+  }
   const nodesById = new Map(inputNodes.map((node) => [node.id, node]));
   const files = inputNodes.filter((node) => node.type === "file");
   if (!files.length) return layoutStandaloneNodes(inputNodes, inputEdges);
@@ -161,13 +167,24 @@ function layoutFocusedGraph(inputNodes: CodeGraphNodeRecord[] = [], inputEdges: 
 }
 
 function flowEdges(edges: CodeGraphEdge[] = [], matchedNodeIds: Set<string> = emptyMatchedNodeIds, isSearching = false, focusedNodeId: string | null = null): Edge[] {
+  const showLabels = edges.length <= 250;
   return edges.map((edge, index) => {
     const connectedToFocus = focusedNodeId !== null && (edge.source === focusedNodeId || edge.target === focusedNodeId);
     const dimmedByFocus = focusedNodeId !== null && !connectedToFocus;
     const relatedToMatch = !isSearching || matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target);
     const visible = !dimmedByFocus && relatedToMatch;
-    const relationshipColor = edge.type === "CALLS" ? "#22c55e" : edge.type === "DECLARES" ? "#60a5fa" : "#a78bfa";
-    return { id: edge.id || `${edge.source}-${edge.target}-${edge.type}-${index}`, source: edge.source, target: edge.target, type: "smoothstep", label: edge.type, animated: edge.type === "CALLS", labelStyle: { fill: connectedToFocus ? "#f8fafc" : relationshipColor, fontSize: 10, fontWeight: 700, opacity: visible ? 1 : 0.2 }, labelBgStyle: { fill: "#0f172a", fillOpacity: visible ? 0.9 : 0.35 }, labelBgPadding: [4, 2], style: { stroke: connectedToFocus ? "#22d3ee" : visible ? relationshipColor : "#334155", strokeWidth: connectedToFocus ? 2.5 : visible ? 1.45 : 1, opacity: visible ? 1 : 0.2 } };
+    const relationshipColor = edge.type === "CALLS"
+      ? "#22c55e"
+      : edge.type === "EXTENDS"
+        ? "#f97316"
+      : edge.type === "HAS_METHOD"
+          ? "#eab308"
+          : edge.type === "HANDLES"
+            ? "#fb7185"
+          : edge.type === "DECLARES"
+            ? "#60a5fa"
+            : "#a78bfa";
+    return { id: edge.id || `${edge.source}-${edge.target}-${edge.type}-${index}`, source: edge.source, target: edge.target, type: "smoothstep", label: showLabels ? edge.type : undefined, animated: edge.type === "CALLS" && connectedToFocus, labelStyle: { fill: connectedToFocus ? "#f8fafc" : relationshipColor, fontSize: 10, fontWeight: 700, opacity: visible ? 1 : 0.2 }, labelBgStyle: { fill: "#0f172a", fillOpacity: visible ? 0.9 : 0.35 }, labelBgPadding: [4, 2], style: { stroke: connectedToFocus ? "#22d3ee" : visible ? relationshipColor : "#334155", strokeWidth: connectedToFocus ? 2.5 : visible ? 1.45 : 1, opacity: visible ? 1 : 0.2 } };
   });
 }
 
@@ -224,6 +241,7 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
         zoomOnPinch
         minZoom={0.15}
         maxZoom={2.5}
+        onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="#1e293b" />
@@ -236,7 +254,7 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
           zoomable
           nodeColor={(node) => {
             const type = (node.data as FlowCodeGraphNodeData).nodeType;
-            return type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "variable" ? "#fbbf24" : "#22d3ee";
+            return type === "project" ? "#e879f9" : type === "module" ? "#38bdf8" : type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "method" ? "#2dd4bf" : type === "variable" ? "#fbbf24" : "#22d3ee";
           }}
           maskColor="rgba(2, 6, 23, 0.78)"
           className="!bottom-4 !right-4 !top-auto !h-28 !w-40 !rounded-lg !border !border-slate-700 !bg-slate-900/95"

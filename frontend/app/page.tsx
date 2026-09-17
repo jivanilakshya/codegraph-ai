@@ -3,7 +3,7 @@ import { ArrowRight, Box, Code2, Database, FolderOpen, GitFork, GitGraph, Networ
 
 export default function HomePage() {
   return (
-    <main className="landing-shell min-h-screen bg-[#06101f] text-slate-100 relative overflow-hidden select-none">
+    <main className="landing-shell bg-[#06101f] text-slate-100 relative select-none">
       {/* Decorative Styles */}
       <style>{`
         @keyframes pulse-ring {

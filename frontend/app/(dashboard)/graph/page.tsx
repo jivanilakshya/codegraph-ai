@@ -8,15 +8,27 @@ import { GraphCanvas } from "@/components/graph/GraphCanvas";
 import { GraphInspector } from "@/components/graph/GraphInspector";
 import { GraphToolbar } from "@/components/graph/GraphToolbar";
 import { RepositoryTree } from "@/components/workspace/RepositoryTree";
-import { getProjectGraph } from "@/services/graph";
+import {
+  getProjectGraph,
+  getProjectGraphFocus,
+  searchProjectGraphNodes,
+} from "@/services/graph";
 import { getProjects } from "@/services/projects";
 import { getRepositoryWorkspace } from "@/services/workspace";
 import type { CodeGraphNode, GraphNodeType, GraphRelationshipType, ProjectGraph } from "@/types/graph";
 import type { Project } from "@/types/project";
 import type { RepositoryFile } from "@/types/workspace";
 
-const allNodeTypes = new Set<GraphNodeType>(["file", "function", "class", "variable"]);
-const allRelationshipTypes = new Set<GraphRelationshipType>(["IMPORTS", "DECLARES", "CALLS"]);
+const allNodeTypes = new Set<GraphNodeType>(["project", "module", "file", "api_route", "function", "class", "method", "variable"]);
+const allRelationshipTypes = new Set<GraphRelationshipType>([
+  "CONTAINS",
+  "HANDLES",
+  "IMPORTS",
+  "DECLARES",
+  "CALLS",
+  "EXTENDS",
+  "HAS_METHOD",
+]);
 
 function toggleValue<T>(values: Set<T>, value: T) {
   const next = new Set(values);
@@ -34,6 +46,7 @@ function GraphPageInner() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [files, setFiles] = useState<RepositoryFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
+  const [fullGraph, setFullGraph] = useState<ProjectGraph | null>(null);
   const [graph, setGraph] = useState<ProjectGraph | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
@@ -42,6 +55,13 @@ function GraphPageInner() {
   const [graphRefresh, setGraphRefresh] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CodeGraphNode[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [focusError, setFocusError] = useState<string | null>(null);
+  const [focusDepth, setFocusDepth] = useState<1 | 2 | 3>(1);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isFocusing, setIsFocusing] = useState(false);
   const [activeNodeTypes, setActiveNodeTypes] = useState(allNodeTypes);
   const [activeRelationships, setActiveRelationships] = useState(allRelationshipTypes);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -49,6 +69,7 @@ function GraphPageInner() {
   const [graphVersion, setGraphVersion] = useState(0);
   const [isExplorerOpen, setIsExplorerOpen] = useState(false);
   const graphRequest = useRef<AbortController | null>(null);
+  const focusRequest = useRef<AbortController | null>(null);
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
 
@@ -139,7 +160,14 @@ function GraphPageInner() {
     void getProjectGraph(selectedProjectId, controller.signal)
       .then((response) => {
         if (!controller.signal.aborted) {
-          setGraph({ nodes: [...response.nodes], edges: [...response.edges] });
+          const completeGraph = {
+            nodes: [...response.nodes],
+            edges: [...response.edges],
+            truncated: response.truncated,
+          };
+          setFullGraph(completeGraph);
+          setGraph(completeGraph);
+          setIsFocused(false);
           setGraphVersion((value) => value + 1);
           setFitViewRequest((value) => value + 1);
         }
@@ -157,6 +185,45 @@ function GraphPageInner() {
 
   useEffect(() => () => graphRequest.current?.abort(), []);
 
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (!selectedProjectId || !normalizedQuery) {
+      setSearchResults([]);
+      setSearchError(null);
+      setIsSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchResults([]);
+    setSearchError(null);
+    setIsSearching(true);
+    const timeout = window.setTimeout(() => {
+      void searchProjectGraphNodes(selectedProjectId, normalizedQuery, controller.signal)
+        .then((response) => {
+          if (!controller.signal.aborted) setSearchResults(response.nodes);
+        })
+        .catch((requestError) => {
+          if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
+            setSearchResults([]);
+            setSearchError(
+              requestError instanceof Error ? requestError.message : "Could not search graph nodes.",
+            );
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsSearching(false);
+        });
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [query, selectedProjectId]);
+
+  useEffect(() => () => focusRequest.current?.abort(), []);
+
   const graphStats = useMemo(() => {
     if (!graph) return null;
     return {
@@ -165,27 +232,15 @@ function GraphPageInner() {
       files: graph.nodes.filter((node) => node.type === "file").length,
       functions: graph.nodes.filter((node) => node.type === "function").length,
       classes: graph.nodes.filter((node) => node.type === "class").length,
+      methods: graph.nodes.filter((node) => node.type === "method").length,
       variables: graph.nodes.filter((node) => node.type === "variable").length,
     };
   }, [graph]);
 
-  const matchingNodeIds = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery || !graph) return new Set<string>();
-    return new Set(
-      graph.nodes
-        .filter((node) => `${node.label} ${node.type}`.toLowerCase().includes(normalizedQuery))
-        .map((node) => node.id),
-    );
-  }, [graph, query]);
-
-  const searchResults = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery || !graph) return [];
-    return graph.nodes
-      .filter((node) => `${node.label} ${node.type}`.toLowerCase().includes(normalizedQuery))
-      .slice(0, 10);
-  }, [graph, query]);
+  const matchingNodeIds = useMemo(
+    () => new Set(searchResults.map((node) => node.id)),
+    [searchResults],
+  );
 
   const filteredNodes = useMemo(
     () => graph?.nodes.filter((node) => activeNodeTypes.has(node.type)) ?? [],
@@ -212,23 +267,65 @@ function GraphPageInner() {
   );
   const selectedNode = selectedNodeId ? nodesById.get(selectedNodeId) ?? null : null;
 
+  const loadFocusedGraph = useCallback((nodeId: string) => {
+    if (!selectedProjectId) return;
+    focusRequest.current?.abort();
+    const controller = new AbortController();
+    focusRequest.current = controller;
+    setIsFocusing(true);
+    setFocusError(null);
+    setSelectedNodeId(nodeId);
+    void getProjectGraphFocus(selectedProjectId, nodeId, focusDepth, controller.signal)
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        setGraph({ nodes: [...response.nodes], edges: [...response.edges], truncated: response.truncated });
+        setIsFocused(true);
+        setGraphVersion((value) => value + 1);
+        setFitViewRequest((value) => value + 1);
+        if (!response.nodes.some((node) => node.id === nodeId)) setSelectedNodeId(null);
+      })
+      .catch((requestError) => {
+        if (!(requestError instanceof DOMException && requestError.name === "AbortError")) {
+          setFocusError(
+            requestError instanceof Error ? requestError.message : "Could not focus the selected node.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsFocusing(false);
+      });
+  }, [focusDepth, selectedProjectId]);
+
   const handleSelectFile = useCallback((file: RepositoryFile) => {
     setSelectedFileId(file.id);
-    setSelectedNodeId(`file_${file.id}`);
+    loadFocusedGraph(`file_${file.id}`);
     setIsExplorerOpen(false);
-  }, []);
+  }, [loadFocusedGraph]);
 
   const handleSearchResultSelect = useCallback((node: CodeGraphNode) => {
     setQuery(node.label);
-    setSelectedNodeId(node.id);
+    loadFocusedGraph(node.id);
     if (node.type === "file") {
       const fileId = Number(/^file_(\d+)$/.exec(node.id)?.[1]);
       if (Number.isFinite(fileId)) setSelectedFileId(fileId);
     }
-  }, []);
+  }, [loadFocusedGraph]);
+
+  const focusSelectedNode = useCallback(() => {
+    if (selectedNodeId) loadFocusedGraph(selectedNodeId);
+  }, [loadFocusedGraph, selectedNodeId]);
+
+  const showFullGraph = useCallback(() => {
+    if (!fullGraph) return;
+    setGraph(fullGraph);
+    setIsFocused(false);
+    setGraphVersion((value) => value + 1);
+    setFitViewRequest((value) => value + 1);
+  }, [fullGraph]);
 
   const handleProjectSelect = useCallback((projectId: number) => {
     graphRequest.current?.abort();
+    focusRequest.current?.abort();
     setSelectedProjectId(projectId);
     localStorage.setItem("activeProjectId", String(projectId));
     const name = projects.find(p => p.id === projectId)?.name;
@@ -241,8 +338,13 @@ function GraphPageInner() {
 
     setFiles([]);
     setSelectedFileId(null);
+    setFullGraph(null);
     setGraph(null);
     setSelectedNodeId(null);
+    setSearchResults([]);
+    setSearchError(null);
+    setFocusError(null);
+    setIsFocused(false);
     setIsExplorerOpen(false);
   }, [projects, pathname, router, searchParams]);
 
@@ -293,7 +395,7 @@ function GraphPageInner() {
   }
 
   const showEmptyFilters = graph?.nodes.length && !filteredNodes.length;
-  const showNoSearchMatches = graph?.nodes.length && query.trim() && !visibleMatchingNodeIds.size;
+  const showNoSearchMatches = graph?.nodes.length && query.trim() && !isSearching && !searchError && !searchResults.length;
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-[#060a10]">
@@ -346,6 +448,7 @@ function GraphPageInner() {
               <span className="text-slate-200">{graphStats.files}</span> Files ·{" "}
               <span className="text-slate-200">{graphStats.functions}</span> Functions ·{" "}
               <span className="text-slate-200">{graphStats.classes}</span> Class ·{" "}
+              <span className="text-slate-200">{graphStats.methods}</span> Methods ·{" "}
               <span className="text-slate-200">{graphStats.variables}</span> Variables
             </>
           ) : (
@@ -367,7 +470,7 @@ function GraphPageInner() {
 
         {isLoadingGraph && !graph ? (
           <div className="absolute inset-0 z-10 grid place-items-center bg-[#060a10]">
-            <StateCard icon={RefreshCw} title="Loading project graph" message="Fetching the complete code graph…" loading />
+            <StateCard icon={RefreshCw} title="Loading project graph" message="Fetching the project graph overview…" loading />
           </div>
         ) : null}
 
@@ -394,15 +497,25 @@ function GraphPageInner() {
             <GraphToolbar
               activeNodeTypes={activeNodeTypes}
               activeRelationships={activeRelationships}
+              canFocus={selectedNodeId !== null}
+              focusError={focusError}
+              focusDepth={focusDepth}
+              isFocused={isFocused}
+              isFocusing={isFocusing}
               isRefreshing={isLoadingGraph}
               onFitView={() => setFitViewRequest((value) => value + 1)}
+              onFocus={focusSelectedNode}
+              onFocusDepthChange={setFocusDepth}
               onQueryChange={setQuery}
               onRefresh={refreshGraph}
               onSearchResultSelect={handleSearchResultSelect}
+              onShowFullGraph={showFullGraph}
               onToggleNodeType={(type) => setActiveNodeTypes((current) => toggleValue(current, type))}
               onToggleRelationship={(type) => setActiveRelationships((current) => toggleValue(current, type))}
               query={query}
-              searchCount={query.trim() ? matchingNodeIds.size : null}
+              searchError={searchError}
+              isSearching={isSearching}
+              searchCount={query.trim() ? searchResults.length : null}
               searchResults={searchResults}
             />
             <GraphCanvas
@@ -415,6 +528,11 @@ function GraphPageInner() {
               matchedNodeIds={visibleMatchingNodeIds}
               onNodeSelect={setSelectedNodeId}
             />
+            {graph.truncated ? (
+              <p className="pointer-events-none absolute bottom-4 left-1/2 z-20 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-amber-400/25 bg-slate-950/90 px-3 py-2 text-center text-xs text-amber-100 shadow-lg shadow-slate-950/50">
+                This view is capped at 500 nodes and 1,000 edges. Search and Focus remain available for the rest of the project.
+              </p>
+            ) : null}
           </>
         ) : null}
 

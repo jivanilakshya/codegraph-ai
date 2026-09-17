@@ -26,7 +26,7 @@ services:
       # Step 6: LLM (Ollama / Qwen)
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:7b}
-
+      
     ports:
       - "8000:8000"
     volumes:
@@ -112,6 +112,7 @@ services:
       - ollama_models:/root/.ollama
     networks:
       - codegraph-network
+    gpus: all
 
   qdrant:
     image: qdrant/qdrant:latest

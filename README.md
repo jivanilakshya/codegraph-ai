@@ -16,7 +16,10 @@ CodeGraph AI is an intelligent code analysis platform that converts source-code 
 - **Neo4j Graph Persistence** — Persist entities and relationships as a traversable property graph
 - **Interactive Graph Visualization** — Explore the knowledge graph visually in the browser
 - **AST Exploration** — Inspect the raw AST of any parsed source file
-- **Project & Repository Management** — Create, list, and delete projects and linked repositories
+- **Dead Code Detection** — Identify potential unreachable files, classes, functions, methods, and variables using conservative knowledge-graph analysis
+- **Circular Dependency Detection** — Detect directed module import cycles (`IMPORTS`) with project isolation and canonical rotation deduplication
+- **Complexity Analysis** — Calculate cyclomatic control-flow complexity and line-size warnings for functions and methods with strict project isolation
+- **Code Quality Dashboard** — Aggregate findings from Dead Code, Circular Dependencies, and Complexity Analysis into a deterministic 0–100 health score and letter grade (A–F) with dedicated UI dashboard
 - **Developer / Database Tools** — Built-in diagnostics and database inspection utilities
 - **Docker-based Environment** — All services run with a single `docker compose up` command
 
@@ -193,7 +196,8 @@ codegraph-ai/
 | **Symbol Extraction** | `symbol_extractor` queries AST nodes to identify imports, classes, functions, methods, and variables |
 | **Relationship Extraction** | `relationship_extractor` derives call, import, and inheritance relationships between extracted symbols |
 | **PostgreSQL Persistence** | `entity_persistence` and `relationship_persistence` write code entities and relationships to PostgreSQL via SQLAlchemy |
-| **Neo4j Persistence** | `neo4j_graph_persistence` and `graph_service` mirror entities and relationships to Neo4j as a traversable property graph |
+| **Neo4j Graph** | `neo4j_graph_persistence` mirrors the project, module, file, declaration, relationship, and API-route projection to Neo4j; `graph_service` reads it through project-scoped graph APIs |
+| **Code Quality Service** | `code_quality_service` aggregates dead code, circular dependencies, and complexity into project health score (0-100) and letter grade (A-F) |
 
 ---
 
@@ -205,8 +209,17 @@ codegraph-ai/
 | **Repository Browsing** | Browse ingested repositories and trigger or monitor scan runs |
 | **AST Exploration** | Inspect the raw Tree-sitter AST of any parsed source file |
 | **Symbol & Relationship Inspection** | View extracted symbols and their relationships in structured lists |
-| **Interactive Graph Visualization** | Explore the knowledge graph as an interactive, force-directed node graph |
+| **Interactive Graph Visualization** | Explore the Neo4j-backed graph with React Flow and Dagre layout, including search, filters, inspection, and depth-controlled focus |
+| **Code Quality Dashboard** | Unified project health score, letter grade badge, domain breakdown, and direct navigation links to analysis tools |
 | **Developer Diagnostics** | Access database inspection and service health utilities via the developer panel |
+
+---
+
+### Graph exploration
+
+The Graph page presents a project-scoped hierarchy of **Project → Module → File → declarations** (classes, functions, methods, and variables), together with Express API-route nodes. It preserves graph semantics with `CONTAINS`, `IMPORTS`, `DECLARES`, `CALLS`, `EXTENDS`, `HAS_METHOD`, and `HANDLES` relationships.
+
+Overview graphs are bounded to 500 nodes and 1,000 edges; the response identifies truncated views. Search and focus are separate server-side queries, so a project, module, file, entity, or API route can be selected independently of the overview. Focus supports depths 1, 2, and 3 while retaining the same bounds. Every graph read is scoped to its selected project.
 
 ---
 

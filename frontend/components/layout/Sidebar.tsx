@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bot,
+  Gauge,
+  MessageSquare,
   ChevronLeft,
   ChevronRight,
   FolderGit2,
@@ -14,6 +16,8 @@ import {
   Home,
   Network,
   Settings,
+  ShieldAlert,
+  ShieldCheck,
   TreePine,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +36,11 @@ const navigation: NavigationItem[] = [
   { href: "/symbols", label: "Symbols", icon: Bot },
   { href: "/relationships", label: "Relationships", icon: GitFork },
   { href: "/graph", label: "Graph", icon: GitGraph },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/dead-code", label: "Dead Code", icon: ShieldAlert },
+  { href: "/circular-dependencies", label: "Circular Dependencies", icon: GitFork },
+  { href: "/complexity", label: "Complexity", icon: Gauge },
+  { href: "/quality", label: "Code Quality", icon: ShieldCheck },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/developer", label: "Developer", icon: Network },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -49,11 +58,11 @@ export function Sidebar({ collapsed, onToggle, mobile = false, onNavigate }: Sid
 
   return (
     <aside
-      className={`${mobile ? "flex w-64 flex-col" : "hidden lg:flex lg:flex-col"} shrink-0 border-r border-slate-800 bg-[#0b111b] transition-[width] duration-200 ${
+      className={`${mobile ? "flex w-64 flex-col" : "hidden lg:flex lg:flex-col"} h-full min-h-0 shrink-0 border-r border-slate-800 bg-[#0b111b] transition-[width] duration-200 ${
         collapsed ? "lg:w-[72px]" : "lg:w-64"
       }`}
     >
-      <div className="flex h-16 items-center border-b border-slate-800 px-4">
+      <div className="flex h-16 shrink-0 items-center border-b border-slate-800 px-4">
         <Link href="/dashboard" className="flex min-w-0 items-center gap-3" aria-label="CodeGraph AI dashboard">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 text-sm font-bold text-slate-950">
             CG
@@ -62,9 +71,9 @@ export function Sidebar({ collapsed, onToggle, mobile = false, onNavigate }: Sid
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Dashboard navigation">
+      <nav className="flex-1 min-h-0 space-y-1 overflow-y-auto px-3 py-4" aria-label="Dashboard navigation">
         {navigation.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}
@@ -84,7 +93,7 @@ export function Sidebar({ collapsed, onToggle, mobile = false, onNavigate }: Sid
         })}
       </nav>
 
-      <div className="border-t border-slate-800 p-3">
+      <div className="shrink-0 border-t border-slate-800 p-3">
         <button
           type="button"
           onClick={onToggle}

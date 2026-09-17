@@ -225,6 +225,26 @@ class TestRAGRetrievalService(unittest.TestCase):
             project_id=42,
         )
 
+    def test_project_id_filtering_rejects_foreign_payload(self):
+        """Payload validation prevents a foreign-project vector reaching an LLM context."""
+        self.mock_search_service.search.return_value = SemanticSearchResponse(
+            query="find token",
+            total_results=1,
+            results=[
+                SemanticSearchResult(
+                    score=0.99,
+                    content="def unrelated_project_token(): pass",
+                    metadata={"project_id": 2, "file_path": "src/token.py"},
+                )
+            ],
+        )
+
+        response = self.service.retrieve(query="find token", project_id=1)
+
+        self.assertEqual(response.total_results, 0)
+        self.assertEqual(response.results, [])
+        self.assertIn("No relevant code chunks found.", response.context)
+
     def test_empty_search_results(self):
         """Test empty search results return 0 total_results and fallback context."""
         self.mock_search_service.search.return_value = SemanticSearchResponse(

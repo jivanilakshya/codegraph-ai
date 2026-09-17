@@ -2,7 +2,13 @@
 
 import tempfile
 import unittest
+import os
+import sys
 from pathlib import Path
+
+# Ensure the backend root is importable when the suite is collected from a
+# container or a different working directory.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.ai.chunker import CodeChunker
 

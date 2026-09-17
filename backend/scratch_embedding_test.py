@@ -1,144 +1,130 @@
-"""Development script to verify embedding generation against a real project in the database.
+"""Real project embedding verification script for Step 6.2.6.
 
-Usage (inside the Docker backend container):
+Usage:
     python scratch_embedding_test.py --project-id 1
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-# Database session & models
-from app.database.postgres import SessionLocal
-from app.models.project import Project
-from app.models.file import File
+# Ensure backend root is on sys.path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# Chunker & Embeddings
 from app.ai.chunker import CodeChunker
 from app.ai.embeddings import EmbeddingService
+from app.database.postgres import SessionLocal
+from app.models.file import File
+from app.models.project import Project
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Verify embedding generation against a project from the database."
-    )
-    parser.add_argument(
-        "--project-id",
-        type=int,
-        required=True,
-        help="ID of the project to verify (e.g., --project-id 1)"
-    )
-    return parser.parse_args()
-
-
-def resolve_file_path(project: Project, file: File) -> Path | None:
-    """Build the absolute path for a project file."""
+def _resolve_file_path(project: Project, file_record: File) -> Path | None:
+    """Resolve a database file record to a local filesystem path."""
     if project.local_path:
-        base = Path(project.local_path)
+        base = Path(project.local_path).resolve()
     else:
-        base = Path("/repositories")
+        base = Path("/repositories").resolve()
 
-    candidate = base / file.path
+    candidate = base / file_record.path
     if candidate.is_file():
         return candidate
 
-    fallback = Path("/repositories") / file.path
+    fallback = Path("/repositories") / file_record.path
     if fallback.is_file():
         return fallback
 
     return None
 
 
-def main() -> None:
-    args = parse_args()
-    project_id = args.project_id
+def verify_project_embeddings(project_id: int) -> None:
+    """Load project files, generate code chunks, compute embeddings, and print summary."""
+    print("=" * 60)
+    print(f"🚀 CodeGraph AI — Embedding Service Real Project Verification")
+    print("=" * 60)
 
-    session = SessionLocal()
-    try:
-        project = session.query(Project).filter(Project.id == project_id).first()
+    # 1. Load project and files from database
+    with SessionLocal() as session:
+        project = session.get(Project, project_id)
         if project is None:
-            print(f"[ERROR] Project with ID {project_id} not found in the database.", file=sys.stderr)
+            print(f"❌ Error: Project with ID {project_id} not found in database.")
             sys.exit(1)
 
         files = session.query(File).filter(File.project_id == project_id).all()
+        print(f"✅ Loaded Project: ID={project.id}, Name='{project.name}', Local Path='{project.local_path}'")
+        print(f"✅ Total Registered Files: {len(files)}")
+
         if not files:
-            print(f"[ERROR] Project '{project.name}' (ID {project_id}) has no files recorded.", file=sys.stderr)
-            sys.exit(1)
+            print(f"⚠️ Warning: Project {project_id} has no registered files.")
+            sys.exit(0)
 
-        print(f"Loaded project '{project.name}' with {len(files)} file(s). Chunking...")
-        
+        # 2. Chunk files using CodeChunker
         chunker = CodeChunker()
-        all_candidate_chunks = []  # List of tuple (file_path, CodeChunk)
-        processed_files_count = 0
+        all_chunks = []
+        resolved_files_count = 0
 
-        for file in files:
-            abs_path = resolve_file_path(project, file)
+        for f in files:
+            abs_path = _resolve_file_path(project, f)
             if abs_path is None:
                 continue
-
+            resolved_files_count += 1
             try:
-                # Use default max_chars = 1000
-                chunks = chunker.chunk_file(abs_path, max_chars=1000)
-                for chunk in chunks:
-                    all_candidate_chunks.append((file.path, chunk))
-                processed_files_count += 1
+                file_chunks = chunker.chunk_file(abs_path, max_chars=1000)
+                all_chunks.extend(file_chunks)
             except Exception as e:
-                print(f"  [WARN] Failed to chunk file {file.path}: {e}", file=sys.stderr)
+                print(f"⚠️ Failed to chunk file '{f.path}': {e}")
 
-        total_chunks = len(all_candidate_chunks)
-        if total_chunks == 0:
-            print("[ERROR] No chunks could be generated for this project.", file=sys.stderr)
-            sys.exit(1)
+        print(f"✅ Resolved Files on Disk: {resolved_files_count}")
+        print(f"✅ Total Generated Code Chunks: {len(all_chunks)}")
 
-        print(f"Generated {total_chunks} chunk(s) from {processed_files_count} file(s). Initializing Embedding Service...")
-        
-        # Load embedding service and generate embeddings
+        if not all_chunks:
+            print("⚠️ No valid code chunks generated.")
+            sys.exit(0)
+
+        # 3. Generate embeddings using EmbeddingService
         embedding_service = EmbeddingService()
-        
-        print("Generating embeddings...")
-        chunks_only = [chunk for _, chunk in all_candidate_chunks]
-        chunk_embeddings = embedding_service.embed_chunks(chunks_only)
-        
-        # Find a good example chunk (prefer a named class/function/documentation chunk)
-        example_idx = 0
-        for idx, (path, chunk) in enumerate(all_candidate_chunks):
-            if chunk.name:
-                example_idx = idx
-                break
+        print(f"⏳ Generating embeddings using model '{embedding_service.model_name}' on device '{embedding_service.device}'...")
 
-        example_path, example_chunk = all_candidate_chunks[example_idx]
-        example_emb = chunk_embeddings[example_idx].embedding
-        example_preview = example_emb[:10] if example_emb else []
+        chunk_embeddings = embedding_service.embed_chunks(all_chunks)
 
-        print("\n================================================")
-        print("CodeGraph AI -- Embedding Verification")
-        print("================================================")
-        print(f"Project: {project.name}")
-        print(f"Files: {processed_files_count}")
-        print(f"Chunks: {total_chunks}")
-        print()
-        print(f"Model: {embedding_service.model_name}")
-        print(f"Embedding Dimension: {embedding_service.embedding_dim}")
-        print(f"Device: {embedding_service.device}")
-        print(f"Batch Size: {embedding_service.batch_size}")
-        print(f"Embeddings Generated: {sum(1 for ce in chunk_embeddings if ce.embedding)}")
-        print()
-        print("Example Chunk:")
-        print(f"File: {example_path}")
-        print(f"Type: {example_chunk.entity_type or 'documentation'}")
-        print(f"Name: {example_chunk.name or '(anonymous)'}")
-        print(f"Start Line: {example_chunk.start_line}")
-        print(f"End Line: {example_chunk.end_line}")
-        print()
-        print("Embedding Preview:")
-        print(f"[{', '.join(f'{v:.6f}' for v in example_preview)}...]")
-        print()
-        print("================================================")
-        print("Verification complete. No data was written.")
-        print("================================================")
+        print("\n" + "=" * 60)
+        print("📊 EMBEDDING VERIFICATION SUMMARY")
+        print("=" * 60)
+        print(f"Project ID          : {project.id}")
+        print(f"Files Processed     : {resolved_files_count}")
+        print(f"Code Chunks         : {len(all_chunks)}")
+        print(f"Embeddings Created  : {len(chunk_embeddings)}")
+        print(f"Model Name          : {embedding_service.model_name}")
+        print(f"Embedding Dimension : {embedding_service.embedding_dim}")
+        print(f"Device              : {embedding_service.device}")
+        print(f"Default Batch Size  : {embedding_service.batch_size}")
 
-    finally:
-        session.close()
+        if chunk_embeddings:
+            sample_item = chunk_embeddings[0]
+            sample_chunk = sample_item.chunk
+            sample_vec = sample_item.embedding
+
+            print("\n" + "-" * 60)
+            print("🔍 SAMPLE CHUNK METADATA & EMBEDDING PREVIEW")
+            print("-" * 60)
+            print(f"Chunk Entity Type   : {sample_chunk.entity_type or 'N/A'}")
+            print(f"Chunk Entity Name   : {sample_chunk.name or 'N/A'}")
+            print(f"Line Range          : {sample_chunk.start_line}-{sample_chunk.end_line}")
+            print(f"Byte Offsets        : {sample_chunk.start_byte}-{sample_chunk.end_byte}")
+            print(f"Content Preview     : {sample_chunk.content[:120]!r}...")
+            print(f"Embedding Length    : {len(sample_vec)}")
+            print(f"First 10 Values     : {[round(v, 4) for v in sample_vec[:10]]}")
+            print("-" * 60)
+
+        print("\n✅ Step 6.2.6 Embedding Verification Completed Successfully!")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Verify Step 6.2.6 Embedding Service against a real project.")
+    parser.add_argument("--project-id", type=int, default=1, help="ID of the project to verify embeddings for (default: 1)")
+    args = parser.parse_args()
+
+    verify_project_embeddings(args.project_id)
 
 
 if __name__ == "__main__":

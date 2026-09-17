@@ -39,19 +39,27 @@ class SemanticSearchService:
         query: str,
         limit: int = 5,
         project_id: Optional[int] = None,
+        file_path: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        language: Optional[str] = None,
+        entity_type: Optional[str] = None,
     ) -> SemanticSearchResponse:
         """Perform semantic similarity search for a query.
 
         Flow:
             1. Validate query string and limit.
             2. Generate embedding vector using EmbeddingService.
-            3. Search Qdrant vector database via VectorStoreService.
+            3. Search Qdrant vector database via VectorStoreService with optional metadata filters.
             4. Format and return matched code chunks with similarity score and metadata.
 
         Args:
             query: Natural language search query.
             limit: Maximum number of results to return (default: 5).
             project_id: Optional project ID to filter results.
+            file_path: Optional repository-relative file path filter.
+            entity_name: Optional code entity name filter.
+            language: Optional programming language filter.
+            entity_type: Optional entity type filter.
 
         Returns:
             SemanticSearchResponse containing matched chunks and metadata.
@@ -68,10 +76,12 @@ class SemanticSearchService:
 
         clean_query = query.strip()
         logger.info(
-            "Executing semantic search for query '%s' (limit=%d, project_id=%s)",
+            "Executing semantic search for query '%s' (limit=%d, project_id=%s, file_path=%s, entity_name=%s)",
             clean_query,
             limit,
             project_id,
+            file_path,
+            entity_name,
         )
 
         # 1. Generate query embedding
@@ -83,12 +93,22 @@ class SemanticSearchService:
 
         # 2. Search Qdrant vector database
         try:
-            scored_points = self.vector_store_service.search(
-                query_vector=query_vector,
-                limit=limit,
-                collection_name=self.collection_name,
-                project_id=project_id,
-            )
+            search_kwargs: dict[str, Any] = {
+                "query_vector": query_vector,
+                "limit": limit,
+                "collection_name": self.collection_name,
+                "project_id": project_id,
+            }
+            if file_path is not None:
+                search_kwargs["file_path"] = file_path
+            if entity_name is not None:
+                search_kwargs["entity_name"] = entity_name
+            if language is not None:
+                search_kwargs["language"] = language
+            if entity_type is not None:
+                search_kwargs["entity_type"] = entity_type
+
+            scored_points = self.vector_store_service.search(**search_kwargs)
         except Exception as e:
             logger.error("Vector store search failed for query '%s': %s", clean_query, str(e))
             raise RuntimeError(f"Vector search failed: {e}") from e

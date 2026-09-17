@@ -1,6 +1,6 @@
-export type GraphNodeType = "file" | "function" | "class" | "variable";
+export type GraphNodeType = "project" | "module" | "file" | "api_route" | "function" | "class" | "method" | "variable";
 
-export type GraphRelationshipType = "IMPORTS" | "DECLARES" | "CALLS";
+export type GraphRelationshipType = "CONTAINS" | "IMPORTS" | "DECLARES" | "CALLS" | "EXTENDS" | "HAS_METHOD" | "HANDLES";
 
 export interface CodeGraphNode {
   id: string;
@@ -18,6 +18,7 @@ export interface CodeGraphEdge {
 export interface ProjectGraph {
   nodes: CodeGraphNode[];
   edges: CodeGraphEdge[];
+  truncated: boolean;
 }
 
 export interface GraphStats {

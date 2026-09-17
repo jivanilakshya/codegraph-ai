@@ -160,6 +160,58 @@ class TestLLMService(unittest.TestCase):
 
         self.assertIn("failed to parse JSON", str(ctx.exception))
 
+    @patch("app.services.llm_service.urlopen")
+    def test_generate_stream_success(self, mock_urlopen):
+        """Test streaming generator yields text tokens incrementally."""
+        mock_response = [
+            b'{"model": "qwen2.5-coder:7b", "response": "Hello", "done": false}\n',
+            b'{"model": "qwen2.5-coder:7b", "response": " world", "done": false}\n',
+            b'{"model": "qwen2.5-coder:7b", "response": "!", "done": true}\n',
+        ]
+        mock_http_response = MagicMock()
+        mock_http_response.__iter__.return_value = iter(mock_response)
+        mock_urlopen.return_value = mock_http_response
+
+        tokens = list(self.service.generate_stream(prompt="Say hello"))
+        self.assertEqual(tokens, ["Hello", " world", "!"])
+        mock_http_response.close.assert_called_once()
+
+    @patch("app.services.llm_service.urlopen")
+    def test_generate_stream_stops_on_done(self, mock_urlopen):
+        """Test that stream terminates when done is true."""
+        mock_response = [
+            b'{"model": "qwen2.5-coder:7b", "response": "First", "done": true}\n',
+            b'{"model": "qwen2.5-coder:7b", "response": "Second", "done": false}\n',
+        ]
+        mock_http_response = MagicMock()
+        mock_http_response.__iter__.return_value = iter(mock_response)
+        mock_urlopen.return_value = mock_http_response
+
+        tokens = list(self.service.generate_stream(prompt="Test"))
+        self.assertEqual(tokens, ["First"])
+        mock_http_response.close.assert_called_once()
+
+    @patch("app.services.llm_service.urlopen")
+    def test_generate_stream_error_in_stream(self, mock_urlopen):
+        """Test RuntimeError raised when Ollama stream returns an error field."""
+        mock_response = [
+            b'{"error": "model not found"}\n',
+        ]
+        mock_http_response = MagicMock()
+        mock_http_response.__iter__.return_value = iter(mock_response)
+        mock_urlopen.return_value = mock_http_response
+
+        with self.assertRaises(RuntimeError) as ctx:
+            list(self.service.generate_stream(prompt="Test"))
+
+        self.assertIn("Ollama stream error: model not found", str(ctx.exception))
+        mock_http_response.close.assert_called_once()
+
+    def test_generate_stream_empty_prompt_validation(self):
+        """Test generate_stream empty prompt validation."""
+        with self.assertRaises(ValueError):
+            list(self.service.generate_stream(prompt="   "))
+
 
 class TestLLMAPI(unittest.TestCase):
     """Integration test suite for POST /api/v1/llm/generate endpoint."""

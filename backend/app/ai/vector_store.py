@@ -149,6 +149,10 @@ class VectorStoreService:
         collection_name: Optional[str] = None,
         project_id: Optional[int] = None,
         score_threshold: Optional[float] = None,
+        file_path: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        language: Optional[str] = None,
+        entity_type: Optional[str] = None,
     ) -> List[ScoredPoint]:
         """Search for semantically similar vectors in Qdrant.
 
@@ -159,6 +163,10 @@ class VectorStoreService:
                 QDRANT_COLLECTION environment variable or 'code_chunks'.
             project_id: Optional project ID to filter vectors by metadata payload.
             score_threshold: Optional minimum similarity score threshold.
+            file_path: Optional repository-relative file path filter.
+            entity_name: Optional code entity name filter (mapped to payload field 'name').
+            language: Optional programming language filter.
+            entity_type: Optional entity type filter.
 
         Returns:
             List of ScoredPoint objects ordered by similarity score descending.
@@ -169,15 +177,45 @@ class VectorStoreService:
         target_collection = collection_name or os.getenv("QDRANT_COLLECTION", "code_chunks")
         try:
             query_filter = None
+            must_conditions = []
             if project_id is not None:
-                query_filter = Filter(
-                    must=[
-                        FieldCondition(
-                            key="project_id",
-                            match=MatchValue(value=project_id),
-                        )
-                    ]
+                must_conditions.append(
+                    FieldCondition(
+                        key="project_id",
+                        match=MatchValue(value=project_id),
+                    )
                 )
+            if file_path is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="file_path",
+                        match=MatchValue(value=file_path),
+                    )
+                )
+            if entity_name is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="name",
+                        match=MatchValue(value=entity_name),
+                    )
+                )
+            if language is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="language",
+                        match=MatchValue(value=language),
+                    )
+                )
+            if entity_type is not None:
+                must_conditions.append(
+                    FieldCondition(
+                        key="entity_type",
+                        match=MatchValue(value=entity_type),
+                    )
+                )
+
+            if must_conditions:
+                query_filter = Filter(must=must_conditions)
 
             # Check if collection exists before querying to return empty list instead of failing
             if not self.collection_exists(target_collection):
