@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { getProjectCircularDependencies } from "@/services/circular_dependency";
+import { buildSourceLocationUrl } from "@/lib/navigation";
 import type { CircularDependencyItem, CircularDependencyResponse } from "@/types/circular_dependency";
 
 export default function CircularDependenciesPage() {
@@ -257,7 +258,11 @@ export default function CircularDependenciesPage() {
                     <div key={fileId} className="flex items-center gap-1.5 mr-3">
                       <span className="text-xs font-mono text-slate-400">{item.file_paths[idx]}</span>
                       <Link
-                        href={`/repository?projectId=${activeProjectId}&file=${fileId}`}
+                        href={buildSourceLocationUrl({
+                          projectId: activeProjectId,
+                          fileId: fileId,
+                          filePath: item.file_paths[idx],
+                        })}
                         className="p-1 rounded text-slate-400 hover:bg-slate-900 hover:text-cyan-300 transition-colors"
                         title="View File"
                       >

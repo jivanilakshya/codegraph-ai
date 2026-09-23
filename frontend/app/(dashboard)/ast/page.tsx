@@ -185,6 +185,9 @@ function AstPageInner() {
                     ast={analysis.ast}
                     searchTerm={searchTerm}
                     sourceText={sourceText}
+                    projectId={activeProjectId}
+                    fileId={selectedFile?.id}
+                    filePath={selectedFile?.path}
                   />
                 </div>
               </div>

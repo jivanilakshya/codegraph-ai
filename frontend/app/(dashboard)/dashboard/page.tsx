@@ -257,7 +257,7 @@ export default function DashboardPage() {
                 <span className="text-xs font-semibold">Open Graph</span>
               </Link>
               <Link
-                href="/repository"
+                href={activeProjectId ? `/repository?projectId=${activeProjectId}` : "/repository"}
                 className="flex flex-col items-center justify-center p-4 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-300 hover:border-cyan-500/20 hover:text-cyan-300 hover:bg-slate-900/40 transition-all text-center"
               >
                 <FolderOpen className="size-5 mb-2" />

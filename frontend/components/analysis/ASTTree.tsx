@@ -5,7 +5,14 @@ import type { AstNodeData } from "@/types/workspace";
 import { ASTDetails } from "./ASTDetails";
 import { ASTNode } from "./ASTNode";
 
-type ASTTreeProps = { ast: AstNodeData; searchTerm: string; sourceText: string | null };
+type ASTTreeProps = {
+  ast: AstNodeData;
+  searchTerm: string;
+  sourceText: string | null;
+  projectId?: number | null;
+  fileId?: number | null;
+  filePath?: string | null;
+};
 
 function expandedFirstTwoLevels(node: AstNodeData, nodeId = "0", depth = 0): Set<string> {
   const expanded = new Set<string>();
@@ -45,7 +52,7 @@ export function getAstSearchMatchCount(ast: AstNodeData, searchTerm: string, sou
   return searchMatches(ast, searchTerm, sourceText).matches;
 }
 
-export function ASTTree({ ast, searchTerm, sourceText }: ASTTreeProps) {
+export function ASTTree({ ast, searchTerm, sourceText, projectId, fileId, filePath }: ASTTreeProps) {
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(() => expandedFirstTwoLevels(ast));
   const [selectedNode, setSelectedNode] = useState<AstNodeData>(ast);
   const [selectedNodeId, setSelectedNodeId] = useState("0");
@@ -63,8 +70,38 @@ export function ASTTree({ ast, searchTerm, sourceText }: ASTTreeProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-auto p-2"><ul><ASTNode node={ast} nodeId="0" depth={0} expandedNodeIds={expandedNodeIds} selectedNodeId={selectedNodeId} searchTerm={searchTerm} sourceText={sourceText} onSelect={(node, nodeId) => { setSelectedNode(node); setSelectedNodeId(nodeId); }} onToggle={(nodeId) => setExpandedNodeIds((current) => { const next = new Set(current); if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId); return next; })} /></ul></div>
-      <ASTDetails node={selectedNode} sourceText={sourceText} />
+      <div className="min-h-0 flex-1 overflow-auto p-2">
+        <ul>
+          <ASTNode
+            node={ast}
+            nodeId="0"
+            depth={0}
+            expandedNodeIds={expandedNodeIds}
+            selectedNodeId={selectedNodeId}
+            searchTerm={searchTerm}
+            sourceText={sourceText}
+            onSelect={(node, nodeId) => {
+              setSelectedNode(node);
+              setSelectedNodeId(nodeId);
+            }}
+            onToggle={(nodeId) =>
+              setExpandedNodeIds((current) => {
+                const next = new Set(current);
+                if (next.has(nodeId)) next.delete(nodeId);
+                else next.add(nodeId);
+                return next;
+              })
+            }
+          />
+        </ul>
+      </div>
+      <ASTDetails
+        node={selectedNode}
+        sourceText={sourceText}
+        projectId={projectId}
+        fileId={fileId}
+        filePath={filePath}
+      />
     </div>
   );
 }

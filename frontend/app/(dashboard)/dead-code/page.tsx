@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { getProjectDeadCode } from "@/services/dead_code";
+import { buildSourceLocationUrl } from "@/lib/navigation";
 import type { DeadCodeItem, DeadCodeResponse } from "@/types/dead_code";
 
 export default function DeadCodePage() {
@@ -304,7 +305,13 @@ export default function DeadCodePage() {
 
                 <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
                   <Link
-                    href={`/repository?projectId=${activeProjectId}&file=${item.file_id}`}
+                    href={buildSourceLocationUrl({
+                      projectId: activeProjectId,
+                      fileId: item.file_id,
+                      filePath: item.file_path,
+                      startLine: item.start_line,
+                      endLine: item.end_line,
+                    })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-300 hover:border-cyan-500/30 hover:text-cyan-200 transition-colors"
                     title="View in Repository"
                   >

@@ -32,6 +32,7 @@ import {
   getConversations,
 } from "@/services/conversations";
 import { askCodebaseQuestionStream } from "@/services/rag";
+import { buildSourceLocationUrl } from "@/lib/navigation";
 import type {
   ChatMessage,
   Conversation,
@@ -283,7 +284,12 @@ function SourceCard({ source, projectId }: { source: RAGChunkResult; projectId: 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs">
         {lines && <span className="font-mono text-[11px] text-emerald-400/90">{lines}</span>}
         <Link
-          href={`/repository?projectId=${projectId}`}
+          href={buildSourceLocationUrl({
+            projectId,
+            filePath: source.file_path,
+            startLine: source.start_line,
+            endLine: source.end_line,
+          })}
           className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 hover:underline"
         >
           <ExternalLink className="size-3" />

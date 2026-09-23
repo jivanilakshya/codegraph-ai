@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { getProjectComplexity } from "@/services/complexity";
+import { buildSourceLocationUrl } from "@/lib/navigation";
 import type { ComplexityItem, ComplexityResponse } from "@/types/complexity";
 
 export default function ComplexityPage() {
@@ -282,7 +283,13 @@ export default function ComplexityPage() {
 
                   <div className="flex items-center gap-2">
                     <Link
-                      href={`/repository?projectId=${activeProjectId}&file=${item.file_id}`}
+                      href={buildSourceLocationUrl({
+                        projectId: activeProjectId,
+                        fileId: item.file_id,
+                        filePath: item.file_path,
+                        startLine: item.start_line,
+                        endLine: item.end_line,
+                      })}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-xs font-semibold text-slate-300 hover:border-cyan-500/30 hover:text-cyan-200 transition-colors"
                       title="View File"
                     >

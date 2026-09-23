@@ -18,9 +18,14 @@ import { AnalysisTabs } from "./AnalysisTabs";
 
 type AnalysisTab = "AST" | "Symbols" | "Relationships";
 
-type AnalysisPanelProps = { selectedFileId: number | null; selectedFileName: string | null; sourceText: string | null };
+type AnalysisPanelProps = {
+  selectedFileId: number | null;
+  selectedFileName: string | null;
+  sourceText: string | null;
+  projectId?: number | null;
+};
 
-export function AnalysisPanel({ selectedFileId, selectedFileName, sourceText }: AnalysisPanelProps) {
+export function AnalysisPanel({ selectedFileId, selectedFileName, sourceText, projectId }: AnalysisPanelProps) {
   const [activeTab, setActiveTab] = useState<AnalysisTab>("AST");
   const [analysis, setAnalysis] = useState<FileAnalysis | null>(null);
   const [analysisFileId, setAnalysisFileId] = useState<number | null>(null);
@@ -71,7 +76,7 @@ export function AnalysisPanel({ selectedFileId, selectedFileName, sourceText }: 
     if (!currentAnalysis) return activeTab === "AST" ? <LoadingAST /> : <LoadingAnalysis />;
     if (activeTab === "Symbols") return hasSymbols ? <SymbolList symbols={currentAnalysis.symbols} /> : <EmptyAnalysis icon={Shapes} title="No symbols found" description="This file does not expose any supported symbols." />;
     if (activeTab === "Relationships") return currentAnalysis.relationships.length ? <RelationshipList relationships={currentAnalysis.relationships} /> : <EmptyAnalysis icon={Network} title="No relationships found" description="This file does not contain any detected relationships." />;
-    return <><ASTToolbar nodeCount={astMetrics.nodeCount} maximumDepth={astMetrics.maximumDepth} isParsing={isLoading} onRefresh={() => setRefreshToken((value) => value + 1)} /><ASTSearch value={searchTerm} matchCount={astSearchMatchCount} onChange={setSearchTerm} /><ASTTree ast={currentAnalysis.ast} searchTerm={searchTerm} sourceText={sourceText} /></>;
+    return <><ASTToolbar nodeCount={astMetrics.nodeCount} maximumDepth={astMetrics.maximumDepth} isParsing={isLoading} onRefresh={() => setRefreshToken((value) => value + 1)} /><ASTSearch value={searchTerm} matchCount={astSearchMatchCount} onChange={setSearchTerm} /><ASTTree ast={currentAnalysis.ast} searchTerm={searchTerm} sourceText={sourceText} projectId={projectId} fileId={selectedFileId} filePath={selectedFileName} /></>;
   };
 
   return <aside className="flex min-h-56 flex-col border-t border-slate-800 bg-[#0a1019] lg:min-h-0 lg:border-l lg:border-t-0"><div className="flex h-10 items-center px-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"><BrainCircuit className="mr-2 size-3.5" /> Analysis</div><AnalysisTabs activeTab={activeTab} onTabChange={setActiveTab} /><div className="flex min-h-0 flex-1 flex-col overflow-auto">{panelContent()}</div></aside>;
