@@ -81,6 +81,16 @@ class DeadCodeService:
                 if project is None:
                     raise DeadCodeProjectNotFoundError(f"Project with ID {project_id} was not found.")
 
+                from app.services.project_settings_service import ProjectSettingsService
+                settings = ProjectSettingsService().get_settings(project_id)
+                if not settings.enable_dead_code:
+                    return DeadCodeResponse(
+                        project_id=project_id,
+                        total_candidates=0,
+                        summary=DeadCodeSummary(),
+                        items=[],
+                    )
+
                 # 2. Fetch all project files
                 files = session.scalars(
                     select(File).where(File.project_id == project_id).order_by(File.id)

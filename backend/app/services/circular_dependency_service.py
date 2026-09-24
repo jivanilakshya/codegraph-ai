@@ -43,6 +43,15 @@ class CircularDependencyService:
                         f"Project with ID {project_id} was not found."
                     )
 
+                from app.services.project_settings_service import ProjectSettingsService
+                settings = ProjectSettingsService().get_settings(project_id)
+                if not settings.enable_circular_dependency:
+                    return CircularDependencyResponse(
+                        project_id=project_id,
+                        summary=CircularDependencySummary(),
+                        cycles=[],
+                    )
+
                 # 2. Fetch all project files
                 files = session.scalars(
                     select(File).where(File.project_id == project_id).order_by(File.id)

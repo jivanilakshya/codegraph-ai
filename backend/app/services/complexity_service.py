@@ -66,6 +66,15 @@ class ComplexityService:
                         f"Project with ID {project_id} was not found."
                     )
 
+                from app.services.project_settings_service import ProjectSettingsService
+                settings = ProjectSettingsService().get_settings(project_id)
+                if not settings.enable_complexity:
+                    return ComplexityResponse(
+                        project_id=project_id,
+                        summary=ComplexitySummary(),
+                        items=[],
+                    )
+
                 # 2. Fetch function and method entities scoped to project_id
                 entities = session.scalars(
                     select(CodeEntity)

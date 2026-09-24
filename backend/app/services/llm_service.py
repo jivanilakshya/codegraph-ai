@@ -32,6 +32,25 @@ class LLMService:
         self.default_model = default_model or get_ollama_model()
         self.timeout = timeout
 
+    def get_available_models(self) -> list[str]:
+        """Fetch available model names from the local Ollama service /api/tags endpoint."""
+        endpoint_url = f"{self.base_url}/api/tags"
+        req = Request(endpoint_url, method="GET")
+        models: list[str] = []
+        try:
+            with urlopen(req, timeout=5.0) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+                if isinstance(payload, dict) and "models" in payload and isinstance(payload["models"], list):
+                    for item in payload["models"]:
+                        if isinstance(item, dict) and "name" in item and isinstance(item["name"], str):
+                            models.append(item["name"])
+        except Exception as error:
+            logger.warning("Could not fetch models from Ollama at '%s': %s", endpoint_url, error)
+
+        if self.default_model not in models:
+            models.insert(0, self.default_model)
+        return models
+
     def generate(
         self,
         prompt: str,

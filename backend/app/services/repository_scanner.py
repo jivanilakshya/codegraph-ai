@@ -139,7 +139,7 @@ class RepositoryScanner:
 
         # 2. File scanning
         scan_start = perf_counter()
-        scanned_files, ignored_files = self._scan_directory(repository_path)
+        scanned_files, ignored_files = self._scan_directory(repository_path, project_id=project_id)
         scan_time = perf_counter() - scan_start
         logger.info("[SCAN] File scanning: %.2fs", scan_time)
         logger.info("[SCAN] Total files found: %s", len(scanned_files))
@@ -270,9 +270,22 @@ class RepositoryScanner:
         return repository_path.resolve()
 
     @staticmethod
-    def _scan_directory(repository_path: Path) -> tuple[list[ScannedFile], int]:
+    def _scan_directory(repository_path: Path, project_id: int | None = None) -> tuple[list[ScannedFile], int]:
         scanned_files: list[ScannedFile] = []
         ignored_files = 0
+
+        ignored_dirs = set(IGNORED_DIRECTORIES)
+        max_bytes: int | None = None
+
+        if project_id is not None:
+            try:
+                from app.services.project_settings_service import ProjectSettingsService
+                settings = ProjectSettingsService().get_settings(project_id)
+                ignored_dirs.update(settings.custom_exclusions)
+                if settings.max_file_size_mb > 0:
+                    max_bytes = int(settings.max_file_size_mb * 1024 * 1024)
+            except Exception as err:
+                logger.warning("Could not load project settings for project %s: %s", project_id, err)
 
         try:
             for directory_path, directory_names, file_names in os.walk(
@@ -281,7 +294,7 @@ class RepositoryScanner:
                 directory_names[:] = [
                     directory_name
                     for directory_name in directory_names
-                    if directory_name not in IGNORED_DIRECTORIES
+                    if directory_name not in ignored_dirs
                 ]
 
                 for file_name in file_names:
@@ -294,6 +307,11 @@ class RepositoryScanner:
                         file_stat = file_path.stat()
                     except OSError:
                         logger.warning("Skipping unreadable file: %s", file_path)
+                        ignored_files += 1
+                        continue
+
+                    if max_bytes is not None and file_stat.st_size > max_bytes:
+                        logger.info("Skipping file exceeding max_file_size_mb: %s (%s bytes)", file_path, file_stat.st_size)
                         ignored_files += 1
                         continue
 

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.file import File
     from app.models.metadata import Metadata
+    from app.models.project_settings import ProjectSettings
 
 
 class Project(Base):
@@ -47,4 +48,6 @@ class Project(Base):
     conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
-
+    settings: Mapped["ProjectSettings | None"] = relationship(
+        back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )

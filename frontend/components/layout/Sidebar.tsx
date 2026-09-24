@@ -42,7 +42,6 @@ const navigation: NavigationItem[] = [
   { href: "/complexity", label: "Complexity", icon: Gauge },
   { href: "/quality", label: "Code Quality", icon: ShieldCheck },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/developer", label: "Developer", icon: Network },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

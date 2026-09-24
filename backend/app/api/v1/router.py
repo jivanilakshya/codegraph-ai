@@ -19,11 +19,13 @@ from app.api.v1.endpoints.dead_code import router as dead_code_router
 from app.api.v1.endpoints.circular_dependency import router as circular_dependency_router
 from app.api.v1.endpoints.complexity import router as complexity_router
 from app.api.v1.endpoints.code_quality import router as code_quality_router
+from app.api.v1.endpoints.settings import router as settings_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(conversations_router)
 api_router.include_router(github_router)
 api_router.include_router(projects_router)
+api_router.include_router(settings_router)
 api_router.include_router(graph_router)
 api_router.include_router(dead_code_router)
 api_router.include_router(circular_dependency_router)
