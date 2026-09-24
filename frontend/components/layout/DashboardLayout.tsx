@@ -59,7 +59,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className={isDark ? "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-[#080d14] text-slate-100" : "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-slate-100 text-slate-950"}>
+    <div className={isDark ? "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-black text-white selection:bg-white selection:text-black" : "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-slate-100 text-slate-950"}>
       <Sidebar collapsed={collapsed} onToggle={handleToggleSidebar} />
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">

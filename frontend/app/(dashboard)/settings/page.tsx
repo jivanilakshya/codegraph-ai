@@ -407,7 +407,7 @@ export default function SettingsPage() {
                     Custom Project Exclusions
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    Add custom directory patterns to exclude from this project's scan inventory.
+                    Add custom directory patterns to exclude from this project&apos;s scan inventory.
                   </p>
 
                   {/* Add Input */}
