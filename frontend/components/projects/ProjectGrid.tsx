@@ -4,19 +4,28 @@ import { ProjectCard } from "./ProjectCard";
 
 type ProjectGridProps = {
   projects: Project[];
+  activeProjectId?: number | null;
   scanningProjectId: number | null;
   deletingProjectId: number | null;
   onScan: (project: Project) => void;
   onDelete: (project: Project) => void;
 };
 
-export function ProjectGrid({ projects, scanningProjectId, deletingProjectId, onScan, onDelete }: ProjectGridProps) {
+export function ProjectGrid({
+  projects,
+  activeProjectId,
+  scanningProjectId,
+  deletingProjectId,
+  onScan,
+  onDelete,
+}: ProjectGridProps) {
   return (
     <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
       {projects.map((project) => (
         <ProjectCard
           key={project.id}
           project={project}
+          isActive={activeProjectId === project.id}
           isScanning={scanningProjectId === project.id}
           isDeleting={deletingProjectId === project.id}
           onScan={onScan}
@@ -26,3 +35,4 @@ export function ProjectGrid({ projects, scanningProjectId, deletingProjectId, on
     </section>
   );
 }
+

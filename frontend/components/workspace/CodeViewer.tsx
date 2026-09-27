@@ -15,18 +15,56 @@ type CodeViewerProps = {
 };
 
 const keywords = new Set([
-  "async", "await", "class", "const", "def", "export", "for", "from",
-  "function", "if", "import", "in", "interface", "let", "new", "return",
-  "type", "var"
+  "async", "await", "break", "case", "catch", "class", "const", "continue",
+  "debugger", "default", "def", "delete", "do", "else", "enum", "export",
+  "extends", "false", "finally", "for", "from", "function", "if", "implements",
+  "import", "in", "instanceof", "interface", "let", "new", "null", "package",
+  "private", "protected", "public", "return", "super", "switch", "this",
+  "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+  "self", "None", "True", "False", "lambda", "pass", "raise", "as", "is",
+  "and", "or", "not", "elif"
 ]);
 
 function highlightLine(line: string) {
-  const fragments = line.split(/(\/\/.*$|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[A-Za-z_][A-Za-z0-9_]*\b)/g);
-  return fragments.map((fragment, index) => {
-    if (fragment.startsWith("//") || fragment.startsWith("#")) return <span key={index} className="text-slate-500">{fragment}</span>;
-    if (fragment.startsWith("\"") || fragment.startsWith("'")) return <span key={index} className="text-emerald-350">{fragment}</span>;
-    if (keywords.has(fragment)) return <span key={index} className="text-violet-300">{fragment}</span>;
-    return <span key={index}>{fragment}</span>;
+  const tokens = line.split(/(\/\/.*$|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b|[=+\-*/%&|^~<>!?:;,.\(\)\{\}\[\]])/g);
+
+  return tokens.map((fragment, index) => {
+    if (!fragment) return null;
+
+    // Comments -> #737373
+    if (fragment.startsWith("//") || fragment.startsWith("#")) {
+      return <span key={index} className="text-[#737373] italic">{fragment}</span>;
+    }
+    // Strings -> #D0D0D0
+    if (fragment.startsWith("\"") || fragment.startsWith("'") || fragment.startsWith("`")) {
+      return <span key={index} className="text-[#D0D0D0]">{fragment}</span>;
+    }
+    // Numbers -> #C4C4C4
+    if (/^\b\d+(?:\.\d+)?\b$/.test(fragment)) {
+      return <span key={index} className="text-[#C4C4C4]">{fragment}</span>;
+    }
+    // Keywords -> #FFFFFF
+    if (keywords.has(fragment)) {
+      return <span key={index} className="text-white font-semibold">{fragment}</span>;
+    }
+    // Types / Classes -> #FFFFFF
+    if (/^[A-Z][A-Za-z0-9_]*$/.test(fragment)) {
+      return <span key={index} className="text-white font-semibold">{fragment}</span>;
+    }
+    // Functions -> #F0F0F0
+    if (/^[a-z_][A-Za-z0-9_]*$/.test(fragment)) {
+      const remainingLine = tokens.slice(index + 1).join("").trimStart();
+      if (remainingLine.startsWith("(")) {
+        return <span key={index} className="text-[#F0F0F0] font-medium">{fragment}</span>;
+      }
+      return <span key={index} className="text-[#E5E5E5]">{fragment}</span>;
+    }
+    // Operators / Punctuation -> #A3A3A3
+    if (/^[=+\-*/%&|^~<>!?:;,.\(\)\{\}\[\]]$/.test(fragment)) {
+      return <span key={index} className="text-[#A3A3A3]">{fragment}</span>;
+    }
+    // Primary code text -> #E5E5E5
+    return <span key={index} className="text-[#E5E5E5]">{fragment}</span>;
   });
 }
 
@@ -58,7 +96,7 @@ function renderLineWithColumnHighlight(
       return (
         <>
           {highlightLine(before)}
-          <mark className="bg-cyan-400/30 text-cyan-100 rounded px-0.5 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]">
+          <mark className="bg-[rgba(255,255,255,0.2)] text-white rounded px-0.5 font-bold shadow-[0_0_8px_rgba(255,255,255,0.3)]">
             {target}
           </mark>
           {highlightLine(after)}
@@ -110,28 +148,28 @@ export function CodeViewer({
 
   if (isLoading) {
     return (
-      <section className="flex h-full flex-col items-center justify-center bg-[#080d14]">
-        <LoaderCircle className="size-6 animate-spin text-cyan-400" />
-        <p className="mt-2 text-xs text-slate-500">Loading source file…</p>
+      <section className="flex h-full flex-col items-center justify-center bg-[#050505]">
+        <LoaderCircle className="size-6 animate-spin text-white" />
+        <p className="mt-3 font-mono text-sm text-[#737373]">Loading source file…</p>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="flex h-full flex-col items-center justify-center bg-[#080d14] p-6 text-center">
-        <FileWarning className="size-8 text-rose-400" />
-        <p className="mt-2 text-sm text-rose-300">{error}</p>
+      <section className="flex h-full flex-col items-center justify-center bg-[#050505] p-6 text-center font-mono text-sm">
+        <FileWarning className="size-8 text-rose-300" />
+        <p className="mt-3 text-rose-200">{error}</p>
       </section>
     );
   }
 
   if (!file) {
     return (
-      <section className="flex h-full flex-col items-center justify-center bg-[#080d14] p-6 text-center">
-        <Code2 className="size-8 text-slate-600 animate-pulse" />
-        <h2 className="mt-3 font-semibold text-slate-300">Select a file to preview</h2>
-        <p className="mt-1 text-xs text-slate-500">Choose a repository file from the explorer.</p>
+      <section className="flex h-full flex-col items-center justify-center bg-[#050505] p-6 text-center select-none">
+        <Code2 className="size-10 text-[#737373] animate-pulse" />
+        <h2 className="mt-4 font-sans text-lg font-bold text-white">Select a file to preview</h2>
+        <p className="mt-1 font-mono text-xs text-[#737373]">Choose a repository file from the explorer.</p>
       </section>
     );
   }
@@ -148,22 +186,26 @@ export function CodeViewer({
     : null;
 
   return (
-    <section className="flex h-full flex-col bg-[#080d14] font-mono text-[13px] leading-6 text-slate-300 min-h-0">
-      <div className="shrink-0 flex h-10 items-center justify-between border-b border-slate-800 bg-[#0a1019] px-4 text-xs text-slate-400 select-none gap-2">
-        <span className="truncate font-semibold text-slate-300" title={file.path}>
+    <section
+      className="flex h-full flex-col bg-[#050505] text-[#E5E5E5] min-h-0 text-[15px] leading-[1.65] sm:text-[16px] sm:leading-[1.65]"
+      style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, monospace" }}
+    >
+      {/* Editor File Header */}
+      <div className="shrink-0 flex h-12 items-center justify-between border-b border-[#202020] bg-[#0A0A0A] px-4 text-xs select-none gap-3">
+        <span className="truncate text-[16px] font-semibold text-white" title={file.path}>
           {file.path}
         </span>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           {clampedRange && (
-            <div className="flex items-center gap-1.5 rounded border border-cyan-500/30 bg-cyan-950/40 px-2 py-0.5 text-[11px] font-medium text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.15)] animate-in fade-in">
-              <MapPin className="size-3 text-cyan-400" />
+            <div className="flex items-center gap-1.5 rounded border border-[#303030] bg-[#121212] px-2 py-0.5 text-[11px] font-medium text-white shadow-sm">
+              <MapPin className="size-3 text-white" />
               <span>{highlightLabel}</span>
               {onClearHighlight && (
                 <button
                   type="button"
                   onClick={onClearHighlight}
-                  className="ml-1 rounded p-0.5 text-cyan-400/70 hover:bg-cyan-900/60 hover:text-cyan-200 transition-colors"
+                  className="ml-1 rounded p-0.5 text-[#A3A3A3] hover:bg-[#202020] hover:text-white transition-colors"
                   title="Clear location highlight"
                   aria-label="Clear highlight"
                 >
@@ -173,13 +215,14 @@ export function CodeViewer({
             </div>
           )}
 
-          <span className="font-mono text-[10px] tracking-wide text-cyan-400 uppercase bg-cyan-950/20 px-2 py-0.5 rounded border border-cyan-800/20">
-            {file.language ?? "Plain text"}
+          <span className="font-mono text-[11px] font-bold tracking-wider text-white uppercase bg-[#151515] px-2.5 py-1 rounded border border-[#303030]">
+            {file.language ?? "Plain Text"}
           </span>
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-auto py-3 min-h-0">
+      {/* Editor Code Area */}
+      <div ref={containerRef} className="flex-1 overflow-auto py-3 min-h-0 bg-[#050505]">
         <pre className="min-w-max">
           <code>
             {lines.map((line, index) => {
@@ -192,19 +235,22 @@ export function CodeViewer({
                   data-line={lineNum}
                   className={`flex transition-colors border-l-2 ${
                     highlighted
-                      ? "bg-cyan-950/40 border-cyan-400 text-slate-100 font-medium"
-                      : "border-transparent hover:bg-slate-900/35"
+                      ? "bg-[rgba(255,255,255,0.08)] border-white text-white font-medium"
+                      : "border-transparent hover:bg-[rgba(255,255,255,0.03)]"
                   }`}
                 >
+                  {/* Line Number Column */}
                   <span
-                    className={`w-12 shrink-0 select-none pr-3 text-right ${
+                    className={`w-12 sm:w-14 shrink-0 select-none pr-3 text-right text-[14px] sm:text-[15px] ${
                       highlighted
-                        ? "border-r border-cyan-500/40 bg-cyan-950/60 text-cyan-300 font-bold"
-                        : "border-r border-slate-800/70 text-slate-600"
+                        ? "border-r border-[#444444] bg-[#151515] text-[#A3A3A3] font-bold"
+                        : "border-r border-[#202020] text-[#777777]"
                     }`}
                   >
                     {lineNum}
                   </span>
+
+                  {/* Code Line Content */}
                   <span className="whitespace-pre px-4">
                     {renderLineWithColumnHighlight(line, lineNum, clampedRange)}
                   </span>
@@ -217,3 +263,5 @@ export function CodeViewer({
     </section>
   );
 }
+
+

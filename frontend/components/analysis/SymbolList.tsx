@@ -16,29 +16,29 @@ const groups: { key: SymbolGroup; label: string; icon: LucideIcon }[] = [
 
 export function SymbolList({ symbols }: SymbolListProps) {
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 p-4 font-mono text-xs">
       {groups.map(({ key, label, icon: Icon }) => {
         const values = symbols[key];
         if (!values.length) return null;
 
         return (
           <section key={key}>
-            <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-              <Icon className="size-3.5" />
+            <h3 className="mb-2 flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+              <Icon className="size-3.5 text-white" />
               {label}
             </h3>
             <ul className="space-y-1.5">
               {values.map((value, index) => (
                 <li
                   key={`${value}-${index}`}
-                  className="flex items-center justify-between gap-4 truncate rounded-lg border border-slate-800 bg-slate-950/30 px-3 py-1.5 font-mono text-xs text-slate-300 hover:border-slate-700 hover:bg-slate-900/40 hover:text-slate-200 transition-colors"
+                  className="flex items-center justify-between gap-4 truncate rounded-lg border border-[#202020] bg-[#0A0A0A] px-3 py-2 text-xs text-white transition-all hover:border-[#383838] hover:bg-[#101010]"
                   title={value}
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <Icon className="size-3.5 shrink-0 text-slate-500" />
+                    <Icon className="size-3.5 shrink-0 text-[#737373]" />
                     <span className="truncate">{value}</span>
                   </div>
-                  <span className="shrink-0 font-sans text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded border border-slate-800/40">
+                  <span className="shrink-0 font-mono text-[9px] font-bold uppercase tracking-wider text-[#A3A3A3] bg-[#151515] px-2 py-0.5 rounded border border-[#252525]">
                     {key.replace(/s$/, "")}
                   </span>
                 </li>
@@ -50,3 +50,4 @@ export function SymbolList({ symbols }: SymbolListProps) {
     </div>
   );
 }
+

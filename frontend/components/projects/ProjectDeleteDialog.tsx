@@ -32,25 +32,25 @@ export function ProjectDeleteDialog({
         aria-label="Close delete dialog"
         onClick={onClose}
         disabled={isDeleting}
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
       />
 
-      {/* Panel */}
-      <div className="relative w-full max-w-md rounded-xl border border-slate-700 bg-[#101722] p-6 shadow-2xl">
+      {/* Panel Container */}
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-[#303030] bg-[#080808] p-6 shadow-2xl transition-all">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-rose-400/20 bg-rose-400/10 text-rose-300">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-rose-900/50 bg-rose-950/30 text-rose-300">
               <AlertTriangle className="size-5" />
             </span>
             <div>
               <h2
                 id="delete-dialog-title"
-                className="text-lg font-semibold text-slate-100"
+                className="font-sans text-lg font-bold text-white"
               >
-                Delete project
+                Delete Project
               </h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-0.5 font-mono text-xs text-[#A3A3A3]">
                 This action cannot be undone.
               </p>
             </div>
@@ -59,7 +59,7 @@ export function ProjectDeleteDialog({
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            className="grid size-8 place-items-center rounded-md text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-200"
+            className="grid size-8 place-items-center rounded-md text-[#737373] transition-colors hover:bg-[#151515] hover:text-white"
             aria-label="Close"
           >
             <X className="size-4" />
@@ -67,24 +67,24 @@ export function ProjectDeleteDialog({
         </div>
 
         {/* Body */}
-        <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3">
-          <p className="text-sm text-slate-300">
+        <div className="mt-5 rounded-lg border border-[#242424] bg-[#050505] p-4 font-mono text-xs text-[#A3A3A3]">
+          <p className="text-white">
             You are about to permanently delete{" "}
-            <span className="font-semibold text-slate-100">
+            <span className="font-bold underline text-white">
               &ldquo;{projectName}&rdquo;
             </span>
             . The following will be removed:
           </p>
-          <ul className="mt-3 space-y-1.5 text-sm text-slate-400">
-            <li className="flex items-center gap-2">
+          <ul className="mt-3 space-y-2 text-xs">
+            <li className="flex items-center gap-2 text-[#A3A3A3]">
               <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
               All scanned files and metadata
             </li>
-            <li className="flex items-center gap-2">
+            <li className="flex items-center gap-2 text-[#A3A3A3]">
               <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
               Code entities, relationships, and the graph
             </li>
-            <li className="flex items-center gap-2">
+            <li className="flex items-center gap-2 text-[#A3A3A3]">
               <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
               Local repository files on disk
             </li>
@@ -92,12 +92,12 @@ export function ProjectDeleteDialog({
         </div>
 
         {/* Actions */}
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex items-center justify-end gap-3 border-t border-[#202020] pt-4">
           <button
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            className="h-10 rounded-lg px-4 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:opacity-50"
+            className="h-9 rounded-lg border border-[#303030] bg-[#080808] px-4 font-mono text-xs font-semibold text-white transition-all hover:bg-[#151515] hover:border-[#555555] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -106,17 +106,18 @@ export function ProjectDeleteDialog({
             id={`delete-confirm-${projectName.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={onConfirm}
             disabled={isDeleting}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-rose-400 disabled:cursor-wait disabled:opacity-70"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-900/60 bg-rose-950/40 px-4 font-mono text-xs font-bold text-rose-200 transition-all hover:bg-rose-900/60 hover:text-white disabled:cursor-wait disabled:opacity-70"
           >
             {isDeleting ? (
               <LoaderCircle className="size-4 animate-spin" />
             ) : (
               <Trash2 className="size-4" />
             )}
-            {isDeleting ? "Deleting…" : "Delete project"}
+            <span>{isDeleting ? "Deleting…" : "Delete Project"}</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
+

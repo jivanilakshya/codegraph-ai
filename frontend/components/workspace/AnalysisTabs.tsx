@@ -7,5 +7,23 @@ type AnalysisTabsProps = { activeTab: AnalysisTab; onTabChange: (tab: AnalysisTa
 const tabs: AnalysisTab[] = ["AST", "Symbols", "Relationships"];
 
 export function AnalysisTabs({ activeTab, onTabChange }: AnalysisTabsProps) {
-  return <div className="flex border-b border-slate-800 px-2">{tabs.map((tab) => <button key={tab} type="button" onClick={() => onTabChange(tab)} className={`h-10 px-2 text-xs font-medium transition-colors ${activeTab === tab ? "border-b-2 border-cyan-400 text-cyan-300" : "text-slate-500 hover:text-slate-300"}`}>{tab}</button>)}</div>;
+  return (
+    <div className="flex border-b border-[#202020] bg-[#0A0A0A] px-3 font-mono text-xs select-none">
+      {tabs.map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => onTabChange(tab)}
+          className={`h-10 px-3 font-semibold transition-all duration-150 ${
+            activeTab === tab
+              ? "border-b-2 border-white bg-[#121212] text-white"
+              : "border-b-2 border-transparent text-[#737373] hover:bg-[#0E0E0E] hover:text-[#A3A3A3]"
+          }`}
+        >
+          {tab}
+        </button>
+      ))}
+    </div>
+  );
 }
+

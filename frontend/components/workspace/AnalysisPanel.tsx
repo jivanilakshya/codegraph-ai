@@ -67,8 +67,9 @@ export function AnalysisPanel({ selectedFileId, selectedFileName, sourceText, pr
 
   const currentAnalysis = analysisFileId === selectedFileId ? analysis : null;
   const hasSymbols = currentAnalysis && Object.values(currentAnalysis.symbols).some((values) => values.length > 0);
-  const astMetrics = useMemo(() => currentAnalysis ? getAstMetrics(currentAnalysis.ast) : { nodeCount: 0, maximumDepth: 0 }, [currentAnalysis]);
-  const astSearchMatchCount = useMemo(() => currentAnalysis ? getAstSearchMatchCount(currentAnalysis.ast, searchTerm, sourceText) : 0, [currentAnalysis, searchTerm, sourceText]);
+  const astMetrics = useMemo(() => (currentAnalysis ? getAstMetrics(currentAnalysis.ast) : { nodeCount: 0, maximumDepth: 0 }), [currentAnalysis]);
+  const astSearchMatchCount = useMemo(() => (currentAnalysis ? getAstSearchMatchCount(currentAnalysis.ast, searchTerm, sourceText) : 0), [currentAnalysis, searchTerm, sourceText]);
+
   const panelContent = () => {
     if (!selectedFileName) return <EmptyAnalysis icon={Shapes} title="Select a file" description="Choose a repository file to view its analysis." />;
     if (isLoading) return activeTab === "AST" ? <LoadingAST /> : <LoadingAnalysis />;
@@ -76,8 +77,23 @@ export function AnalysisPanel({ selectedFileId, selectedFileName, sourceText, pr
     if (!currentAnalysis) return activeTab === "AST" ? <LoadingAST /> : <LoadingAnalysis />;
     if (activeTab === "Symbols") return hasSymbols ? <SymbolList symbols={currentAnalysis.symbols} /> : <EmptyAnalysis icon={Shapes} title="No symbols found" description="This file does not expose any supported symbols." />;
     if (activeTab === "Relationships") return currentAnalysis.relationships.length ? <RelationshipList relationships={currentAnalysis.relationships} /> : <EmptyAnalysis icon={Network} title="No relationships found" description="This file does not contain any detected relationships." />;
-    return <><ASTToolbar nodeCount={astMetrics.nodeCount} maximumDepth={astMetrics.maximumDepth} isParsing={isLoading} onRefresh={() => setRefreshToken((value) => value + 1)} /><ASTSearch value={searchTerm} matchCount={astSearchMatchCount} onChange={setSearchTerm} /><ASTTree ast={currentAnalysis.ast} searchTerm={searchTerm} sourceText={sourceText} projectId={projectId} fileId={selectedFileId} filePath={selectedFileName} /></>;
+    return (
+      <>
+        <ASTToolbar nodeCount={astMetrics.nodeCount} maximumDepth={astMetrics.maximumDepth} isParsing={isLoading} onRefresh={() => setRefreshToken((value) => value + 1)} />
+        <ASTSearch value={searchTerm} matchCount={astSearchMatchCount} onChange={setSearchTerm} />
+        <ASTTree ast={currentAnalysis.ast} searchTerm={searchTerm} sourceText={sourceText} projectId={projectId} fileId={selectedFileId} filePath={selectedFileName} />
+      </>
+    );
   };
 
-  return <aside className="flex min-h-56 flex-col border-t border-slate-800 bg-[#0a1019] lg:min-h-0 lg:border-l lg:border-t-0"><div className="flex h-10 items-center px-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"><BrainCircuit className="mr-2 size-3.5" /> Analysis</div><AnalysisTabs activeTab={activeTab} onTabChange={setActiveTab} /><div className="flex min-h-0 flex-1 flex-col overflow-auto">{panelContent()}</div></aside>;
+  return (
+    <aside className="flex min-h-56 flex-col border-t border-[#202020] bg-[#080808] lg:min-h-0 lg:border-l lg:border-t-0">
+      <div className="flex h-11 items-center px-4 font-mono text-xs font-bold uppercase tracking-wider text-[#A3A3A3] border-b border-[#202020] bg-[#0A0A0A]">
+        <BrainCircuit className="mr-2 size-3.5 text-white" /> Code Analysis
+      </div>
+      <AnalysisTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto bg-[#050505]">{panelContent()}</div>
+    </aside>
+  );
 }
+
