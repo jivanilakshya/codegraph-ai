@@ -37,12 +37,12 @@ const navigation: NavigationItem[] = [
   { href: "/relationships", label: "Relationships", icon: GitFork },
   { href: "/graph", label: "Graph", icon: GitGraph },
   { href: "/chat", label: "Chat", icon: MessageSquare },
-  { href: "/user-guide", label: "User Guide", icon: BookOpen },
   { href: "/dead-code", label: "Dead Code", icon: ShieldAlert },
   { href: "/circular-dependencies", label: "Circular Dependencies", icon: GitFork },
   { href: "/complexity", label: "Complexity", icon: Gauge },
   { href: "/quality", label: "Code Quality", icon: ShieldCheck },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/user-guide", label: "User Guide", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

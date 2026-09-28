@@ -61,25 +61,26 @@ export function RepositoryTree({
   const tree = createTree(files);
 
   return (
-    <aside className={`flex min-h-0 flex-col bg-[#050505] ${className ?? "h-[min(50vh,24rem)] border-b border-[#202020] lg:h-auto lg:border-b-0 lg:border-r"}`}>
-      {/* Explorer Header Toolbar */}
-      <div className="flex h-12 items-center justify-between border-b border-[#202020] bg-[#0A0A0A] px-4 select-none">
-        <span className="flex items-center gap-2.5 font-mono text-[15px] sm:text-[16px] font-bold uppercase tracking-wider text-white">
-          <FolderTree className="size-4 text-white" />
-          <span>EXPLORER</span>
-          <span className="ml-1 text-xs font-normal text-[#737373]">({files.length})</span>
-        </span>
+    <aside className={`flex min-h-0 flex-col bg-[#050505] ${className ?? "h-[min(50vh,24rem)] border-b border-[#242424] lg:h-auto lg:border-b-0 lg:border-r"}`}
+      >
+        {/* Explorer Header Toolbar */}
+        <div className="flex h-12 items-center justify-between border-b border-[#242424] bg-[#0A0A0A] px-4 select-none">
+          <span className="flex items-center gap-2.5 font-mono text-[15px] sm:text-[16px] font-bold uppercase tracking-wider text-white">
+            <FolderTree className="size-4 text-white" />
+            <span>EXPLORER</span>
+            <span className="ml-1 text-xs font-normal text-[#737373]">({files.length})</span>
+          </span>
 
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="grid size-7.5 place-items-center rounded-md border border-[#222222] bg-[#0D0D0D] text-[#A3A3A3] transition-all hover:border-[#444444] hover:bg-[#151515] hover:text-white"
-          aria-label="Refresh repository"
-          title="Refresh repository structure"
-        >
-          <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin text-white" : ""}`} />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="grid size-7.5 place-items-center rounded-md border border-[#292929] bg-[#080808] text-[#A3A3A3] transition-all hover:border-[#444444] hover:bg-[#151515] hover:text-white"
+            aria-label="Refresh repository"
+            title="Refresh repository structure"
+          >
+            <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin text-white" : ""}`} />
+          </button>
+        </div>
 
       {/* Scrollable File Tree */}
       <div className="min-h-0 flex-1 overflow-auto py-2 font-mono text-xs select-none">

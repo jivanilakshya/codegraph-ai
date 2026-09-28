@@ -1,3 +1,5 @@
+"use client";
+
 import { Search, X } from "lucide-react";
 
 type ASTSearchProps = {
@@ -8,26 +10,29 @@ type ASTSearchProps = {
 
 export function ASTSearch({ value, matchCount, onChange }: ASTSearchProps) {
   return (
-    <div className="relative border-b border-[#202020] bg-[#080808] px-3 py-2">
-      <Search className="pointer-events-none absolute left-5 top-1/2 size-3.5 -translate-y-1/2 text-[#737373]" />
+    <div className="relative border-b border-[#242424] bg-[#050505] px-3 py-2 select-none">
+      <Search className="pointer-events-none absolute left-5 top-1/2 size-3.5 -translate-y-1/2 text-[#555555]" />
       <input
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Search node types or identifiers"
-        className="h-8 w-full rounded border border-[#242424] bg-[#050505] py-1 pl-8 pr-14 font-mono text-xs text-white outline-none placeholder:text-[#737373] focus:border-[rgba(255,255,255,0.4)] focus:shadow-[inset_0_0_10px_rgba(255,255,255,0.03)]"
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search node types or identifiers..."
+        className="h-7 w-full rounded-md border border-[#242424] bg-[#080808] py-1 pl-8 pr-16 font-mono text-[12px] text-white outline-none placeholder:text-[#555555] focus:border-[#555555] focus:shadow-[0_0_10px_rgba(255,255,255,0.03)] transition-all"
       />
       {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="absolute right-4 top-1/2 -translate-y-1/2 rounded p-1 text-[#737373] hover:text-white"
-          aria-label="Clear AST search"
-        >
-          <X className="size-3.5" />
-        </button>
+        <>
+          <span className="absolute right-9 top-1/2 -translate-y-1/2 font-mono text-[10px] text-[#A3A3A3]">
+            {matchCount} {matchCount === 1 ? "match" : "matches"}
+          </span>
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#555555] hover:text-white transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="size-3" />
+          </button>
+        </>
       )}
-      {value && <span className="absolute right-10 top-1/2 -translate-y-1/2 font-mono text-[10px] text-[#A3A3A3]">{matchCount}</span>}
     </div>
   );
 }
-
