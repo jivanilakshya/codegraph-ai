@@ -14,7 +14,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const isGraphWorkspace = pathname === "/graph" || pathname.startsWith("/graph/");
   const isChatWorkspace = pathname === "/chat" || pathname.startsWith("/chat/");
-  const isFullHeightWorkspace = isGraphWorkspace || isChatWorkspace;
+  const isRelationshipsWorkspace = pathname === "/relationships" || pathname.startsWith("/relationships/");
+  const isSymbolsWorkspace = pathname === "/symbols" || pathname.startsWith("/symbols/");
+  const isAstWorkspace = pathname === "/ast" || pathname.startsWith("/ast/");
+  const isFullHeightWorkspace = isGraphWorkspace || isChatWorkspace || isRelationshipsWorkspace || isSymbolsWorkspace || isAstWorkspace;
   const shouldAutoCollapseSidebar = isFullHeightWorkspace;
 
   // Stored user preference for sidebar collapse state (default expanded: false)
