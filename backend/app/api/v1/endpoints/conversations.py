@@ -13,6 +13,7 @@ from app.schemas.conversation import (
     ConversationListResponse,
     ConversationMessagesResponse,
     ConversationResponse,
+    ConversationUpdate,
 )
 from app.services.conversation_service import (
     ConversationNotFoundError,
@@ -113,6 +114,38 @@ def get_conversation_metadata(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch conversation.",
+        ) from error
+
+
+@router.patch(
+    "/conversations/{conversation_id}",
+    response_model=ConversationResponse,
+)
+def update_conversation_title(
+    conversation_id: int,
+    payload: ConversationUpdate,
+    project_id: Annotated[int | None, Query()] = None,
+) -> ConversationResponse:
+    """Update conversation title."""
+    service = ConversationService()
+    try:
+        conversation = service.update_conversation(
+            conversation_id, title=payload.title, project_id=project_id
+        )
+        return ConversationResponse.model_validate(conversation)
+    except ConversationNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
+        ) from error
+    except Exception as error:
+        logger.exception("Could not update conversation %s", conversation_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update conversation.",
         ) from error
 
 

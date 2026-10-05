@@ -1,11 +1,28 @@
 "use client";
 
 import dagre from "dagre";
-import { Background, BackgroundVariant, Controls, MiniMap, Position, ReactFlow, type Edge, type Node, type OnInit, type ReactFlowInstance, useEdgesState, useNodesState } from "@xyflow/react";
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type OnInit,
+  type ReactFlowInstance,
+  useEdgesState,
+  useNodesState,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { CodeGraphNode, FileModuleNode, type FlowCodeGraphNodeData } from "@/components/graph/CodeGraphNode";
+import {
+  CodeGraphNode,
+  FileModuleNode,
+  type FlowCodeGraphNodeData,
+} from "@/components/graph/CodeGraphNode";
 import type { CodeGraphEdge, CodeGraphNode as CodeGraphNodeRecord } from "@/types/graph";
 
 type GraphCanvasProps = {
@@ -27,12 +44,13 @@ type ModuleLayout = {
 
 const nodeTypes = { codeGraph: CodeGraphNode, fileModule: FileModuleNode };
 const emptyMatchedNodeIds = new Set<string>();
-const entityNodeWidth = 190;
+
+const entityNodeWidth = 210;
 const entityNodeHeight = 76;
-const moduleMinWidth = 280;
-const moduleEmptyHeight = 96;
-const moduleHeaderHeight = 56;
-const modulePadding = 28;
+const moduleMinWidth = 300;
+const moduleEmptyHeight = 100;
+const moduleHeaderHeight = 52;
+const modulePadding = 24;
 
 function createDagreGraph(rankdir: "LR" | "TB", options: Record<string, number>) {
   const graph = new dagre.graphlib.Graph();
@@ -41,11 +59,30 @@ function createDagreGraph(rankdir: "LR" | "TB", options: Record<string, number>)
   return graph;
 }
 
-function layoutStandaloneNodes(inputNodes: CodeGraphNodeRecord[], inputEdges: CodeGraphEdge[], xOffset = 0): Node<FlowCodeGraphNodeData>[] {
-  const graph = createDagreGraph("TB", { nodesep: 100, ranksep: 140, marginx: 32, marginy: 32 });
+function layoutStandaloneNodes(
+  inputNodes: CodeGraphNodeRecord[],
+  inputEdges: CodeGraphEdge[],
+  xOffset = 0,
+): Node<FlowCodeGraphNodeData>[] {
+  const graph = createDagreGraph("TB", {
+    nodesep: 80,
+    ranksep: 110,
+    marginx: 40,
+    marginy: 40,
+  });
+
   const nodeIds = new Set(inputNodes.map((node) => node.id));
-  inputNodes.slice().sort((left, right) => left.id.localeCompare(right.id)).forEach((node) => graph.setNode(node.id, { width: entityNodeWidth, height: entityNodeHeight }));
-  inputEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)).forEach((edge) => graph.setEdge(edge.source, edge.target));
+  inputNodes
+    .slice()
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .forEach((node) =>
+      graph.setNode(node.id, { width: entityNodeWidth, height: entityNodeHeight }),
+    );
+
+  inputEdges
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .forEach((edge) => graph.setEdge(edge.source, edge.target));
+
   dagre.layout(graph);
 
   return inputNodes.map((node, index) => {
@@ -54,26 +91,53 @@ function layoutStandaloneNodes(inputNodes: CodeGraphNodeRecord[], inputEdges: Co
       id: node.id,
       type: "codeGraph",
       position: {
-        x: xOffset + (position?.x ?? (index % 4) * 240) - entityNodeWidth / 2,
-        y: (position?.y ?? Math.floor(index / 4) * 140) - entityNodeHeight / 2,
+        x: xOffset + (position?.x ?? (index % 4) * 260) - entityNodeWidth / 2,
+        y: (position?.y ?? Math.floor(index / 4) * 150) - entityNodeHeight / 2,
       },
       style: { width: entityNodeWidth, height: entityNodeHeight },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
-      data: { label: node.label, nodeType: node.type, focused: false, matched: false, dimmed: false },
+      data: {
+        label: node.label,
+        nodeType: node.type,
+        focused: false,
+        matched: false,
+        dimmed: false,
+      },
     };
   });
 }
 
-function layoutModuleChildren(fileId: string, entities: CodeGraphNodeRecord[], edges: CodeGraphEdge[]): ModuleLayout {
-  if (!entities.length) return { childNodes: [], width: moduleMinWidth, height: moduleEmptyHeight };
+function layoutModuleChildren(
+  fileId: string,
+  entities: CodeGraphNodeRecord[],
+  edges: CodeGraphEdge[],
+): ModuleLayout {
+  if (!entities.length) {
+    return { childNodes: [], width: moduleMinWidth, height: moduleEmptyHeight };
+  }
 
-  const graph = createDagreGraph("TB", { nodesep: 32, ranksep: 58, marginx: 8, marginy: 8 });
+  const graph = createDagreGraph("TB", {
+    nodesep: 40,
+    ranksep: 60,
+    marginx: 12,
+    marginy: 12,
+  });
+
   const entityIds = new Set(entities.map((entity) => entity.id));
-  entities.forEach((entity) => graph.setNode(entity.id, { width: entityNodeWidth, height: entityNodeHeight }));
+  entities.forEach((entity) =>
+    graph.setNode(entity.id, { width: entityNodeWidth, height: entityNodeHeight }),
+  );
+
   edges
-    .filter((edge) => edge.type === "CALLS" && entityIds.has(edge.source) && entityIds.has(edge.target))
+    .filter(
+      (edge) =>
+        edge.type === "CALLS" &&
+        entityIds.has(edge.source) &&
+        entityIds.has(edge.target),
+    )
     .forEach((edge) => graph.setEdge(edge.source, edge.target));
+
   dagre.layout(graph);
 
   const bounds = graph.graph() as { width?: number; height?: number };
@@ -81,6 +145,7 @@ function layoutModuleChildren(fileId: string, entities: CodeGraphNodeRecord[], e
   const contentHeight = Math.max(entityNodeHeight, bounds.height ?? entityNodeHeight);
   const width = Math.max(moduleMinWidth, contentWidth + modulePadding * 2);
   const height = moduleHeaderHeight + contentHeight + modulePadding * 2;
+
   const childNodes = entities.map((entity, index) => {
     const position = graph.node(entity.id) as { x: number; y: number } | undefined;
     return {
@@ -89,48 +154,89 @@ function layoutModuleChildren(fileId: string, entities: CodeGraphNodeRecord[], e
       parentId: fileId,
       extent: "parent" as const,
       position: {
-        x: (position?.x ?? contentWidth / 2) - entityNodeWidth / 2 + (width - contentWidth) / 2,
-        y: moduleHeaderHeight + modulePadding + (position?.y ?? index * (entityNodeHeight + 30) + entityNodeHeight / 2) - entityNodeHeight / 2,
+        x:
+          (position?.x ?? contentWidth / 2) -
+          entityNodeWidth / 2 +
+          (width - contentWidth) / 2,
+        y:
+          moduleHeaderHeight +
+          modulePadding +
+          (position?.y ?? index * (entityNodeHeight + 30) + entityNodeHeight / 2) -
+          entityNodeHeight / 2,
       },
       style: { width: entityNodeWidth, height: entityNodeHeight },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
-      data: { label: entity.label, nodeType: entity.type, focused: false, matched: false, dimmed: false, withinModule: true },
+      data: {
+        label: entity.label,
+        nodeType: entity.type,
+        focused: false,
+        matched: false,
+        dimmed: false,
+        withinModule: true,
+      },
     };
   });
+
   return { childNodes, width, height };
 }
 
-function layoutFocusedGraph(inputNodes: CodeGraphNodeRecord[] = [], inputEdges: CodeGraphEdge[] = []): Node<FlowCodeGraphNodeData>[] {
-  // Architecture views need the explicit Project → Module → File chain to
-  // remain visible.  The compact file-frame layout is retained for focused
-  // code-only views, where declaration detail is more useful than hierarchy.
+function layoutFocusedGraph(
+  inputNodes: CodeGraphNodeRecord[] = [],
+  inputEdges: CodeGraphEdge[] = [],
+): Node<FlowCodeGraphNodeData>[] {
+  // If architectural nodes exist (project, module), use standalone layout
   if (inputNodes.some((node) => node.type === "project" || node.type === "module")) {
     return layoutStandaloneNodes(inputNodes, inputEdges);
   }
+
   const nodesById = new Map(inputNodes.map((node) => [node.id, node]));
   const files = inputNodes.filter((node) => node.type === "file");
   if (!files.length) return layoutStandaloneNodes(inputNodes, inputEdges);
 
   const ownerByEntity = new Map<string, string>();
   inputEdges.forEach((edge) => {
-    if (edge.type === "DECLARES" && nodesById.get(edge.source)?.type === "file" && nodesById.get(edge.target)?.type !== "file") ownerByEntity.set(edge.target, edge.source);
-  });
-  const entitiesByFile = new Map(files.map((file) => [file.id, [] as CodeGraphNodeRecord[]]));
-  inputNodes.filter((node) => node.type !== "file").forEach((entity) => {
-    const ownerId = ownerByEntity.get(entity.id);
-    if (ownerId) entitiesByFile.get(ownerId)?.push(entity);
+    if (
+      edge.type === "DECLARES" &&
+      nodesById.get(edge.source)?.type === "file" &&
+      nodesById.get(edge.target)?.type !== "file"
+    ) {
+      ownerByEntity.set(edge.target, edge.source);
+    }
   });
 
+  const entitiesByFile = new Map(files.map((file) => [file.id, [] as CodeGraphNodeRecord[]]));
+  inputNodes
+    .filter((node) => node.type !== "file")
+    .forEach((entity) => {
+      const ownerId = ownerByEntity.get(entity.id);
+      if (ownerId) entitiesByFile.get(ownerId)?.push(entity);
+    });
+
   const modules = new Map<string, ModuleLayout>();
-  files.forEach((file) => modules.set(file.id, layoutModuleChildren(file.id, entitiesByFile.get(file.id) ?? [], inputEdges)));
-  const fileGraph = createDagreGraph("TB", { nodesep: 100, ranksep: 160, marginx: 48, marginy: 48 });
+  files.forEach((file) =>
+    modules.set(
+      file.id,
+      layoutModuleChildren(file.id, entitiesByFile.get(file.id) ?? [], inputEdges),
+    ),
+  );
+
+  const fileGraph = createDagreGraph("TB", {
+    nodesep: 90,
+    ranksep: 140,
+    marginx: 48,
+    marginy: 48,
+  });
+
   files.forEach((file) => {
     const moduleLayout = modules.get(file.id)!;
     fileGraph.setNode(file.id, { width: moduleLayout.width, height: moduleLayout.height });
   });
+
   const laidOutFileEdges = new Set<string>();
-  const moduleEndpoint = (nodeId: string) => nodesById.get(nodeId)?.type === "file" ? nodeId : ownerByEntity.get(nodeId);
+  const moduleEndpoint = (nodeId: string) =>
+    nodesById.get(nodeId)?.type === "file" ? nodeId : ownerByEntity.get(nodeId);
+
   inputEdges.forEach((edge) => {
     const source = moduleEndpoint(edge.source);
     const target = moduleEndpoint(edge.target);
@@ -141,89 +247,230 @@ function layoutFocusedGraph(inputNodes: CodeGraphNodeRecord[] = [], inputEdges: 
       fileGraph.setEdge(source, target);
     }
   });
+
   dagre.layout(fileGraph);
 
   const moduleNodes: Node<FlowCodeGraphNodeData>[] = [];
   const childNodes: Node<FlowCodeGraphNodeData>[] = [];
+
   files.forEach((file, index) => {
     const moduleLayout = modules.get(file.id)!;
     const position = fileGraph.node(file.id) as { x: number; y: number } | undefined;
     moduleNodes.push({
       id: file.id,
       type: "fileModule",
-      position: { x: (position?.x ?? index * (moduleLayout.width + 120)) - moduleLayout.width / 2, y: (position?.y ?? 0) - moduleLayout.height / 2 },
+      position: {
+        x:
+          (position?.x ?? index * (moduleLayout.width + 120)) -
+          moduleLayout.width / 2,
+        y: (position?.y ?? 0) - moduleLayout.height / 2,
+      },
       style: { width: moduleLayout.width, height: moduleLayout.height },
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
-      data: { label: file.label, nodeType: "file", focused: false, matched: false, dimmed: false, entityCount: moduleLayout.childNodes.length },
+      data: {
+        label: file.label,
+        nodeType: "file",
+        focused: false,
+        matched: false,
+        dimmed: false,
+        entityCount: moduleLayout.childNodes.length,
+      },
     });
     childNodes.push(...moduleLayout.childNodes);
   });
 
   const groupedEntityIds = new Set(ownerByEntity.keys());
-  const ungroupedNodes = inputNodes.filter((node) => node.type !== "file" && !groupedEntityIds.has(node.id));
+  const ungroupedNodes = inputNodes.filter(
+    (node) => node.type !== "file" && !groupedEntityIds.has(node.id),
+  );
   const groupBounds = fileGraph.graph() as { width?: number };
-  return [...moduleNodes, ...childNodes, ...layoutStandaloneNodes(ungroupedNodes, inputEdges, (groupBounds.width ?? 0) + 180)];
+  return [
+    ...moduleNodes,
+    ...childNodes,
+    ...layoutStandaloneNodes(ungroupedNodes, inputEdges, (groupBounds.width ?? 0) + 180),
+  ];
 }
 
-function flowEdges(edges: CodeGraphEdge[] = [], matchedNodeIds: Set<string> = emptyMatchedNodeIds, isSearching = false, focusedNodeId: string | null = null): Edge[] {
-  const showLabels = edges.length <= 250;
+const relationshipColors: Record<string, string> = {
+  CALLS: "#10b981", // emerald
+  IMPORTS: "#38bdf8", // sky
+  DECLARES: "#6366f1", // indigo
+  EXTENDS: "#f97316", // orange
+  HAS_METHOD: "#eab308", // amber
+  HANDLES: "#f43f5e", // rose
+  CONTAINS: "#8b5cf6", // violet
+};
+
+function flowEdges(
+  edges: CodeGraphEdge[] = [],
+  matchedNodeIds: Set<string> = emptyMatchedNodeIds,
+  isSearching = false,
+  focusedNodeId: string | null = null,
+): Edge[] {
+  const showLabels = edges.length <= 300;
+
   return edges.map((edge, index) => {
-    const connectedToFocus = focusedNodeId !== null && (edge.source === focusedNodeId || edge.target === focusedNodeId);
+    const connectedToFocus =
+      focusedNodeId !== null &&
+      (edge.source === focusedNodeId || edge.target === focusedNodeId);
     const dimmedByFocus = focusedNodeId !== null && !connectedToFocus;
-    const relatedToMatch = !isSearching || matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target);
+    const relatedToMatch =
+      !isSearching || matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target);
     const visible = !dimmedByFocus && relatedToMatch;
-    const relationshipColor = edge.type === "CALLS"
-      ? "#22c55e"
-      : edge.type === "EXTENDS"
-        ? "#f97316"
-      : edge.type === "HAS_METHOD"
-          ? "#eab308"
-          : edge.type === "HANDLES"
-            ? "#fb7185"
-          : edge.type === "DECLARES"
-            ? "#60a5fa"
-            : "#a78bfa";
-    return { id: edge.id || `${edge.source}-${edge.target}-${edge.type}-${index}`, source: edge.source, target: edge.target, type: "smoothstep", label: showLabels ? edge.type : undefined, animated: edge.type === "CALLS" && connectedToFocus, labelStyle: { fill: connectedToFocus ? "#f8fafc" : relationshipColor, fontSize: 10, fontWeight: 700, opacity: visible ? 1 : 0.2 }, labelBgStyle: { fill: "#0f172a", fillOpacity: visible ? 0.9 : 0.35 }, labelBgPadding: [4, 2], style: { stroke: connectedToFocus ? "#22d3ee" : visible ? relationshipColor : "#334155", strokeWidth: connectedToFocus ? 2.5 : visible ? 1.45 : 1, opacity: visible ? 1 : 0.2 } };
+
+    const baseColor = relationshipColors[edge.type] ?? "#94a3b8";
+
+    return {
+      id: edge.id || `${edge.source}-${edge.target}-${edge.type}-${index}`,
+      source: edge.source,
+      target: edge.target,
+      type: "smoothstep",
+      label: showLabels ? edge.type : undefined,
+      animated: edge.type === "CALLS" && connectedToFocus,
+      labelStyle: {
+        fill: connectedToFocus ? "#ffffff" : baseColor,
+        fontSize: 10,
+        fontWeight: 700,
+        opacity: visible ? 1 : 0.2,
+      },
+      labelBgStyle: {
+        fill: "#080d16",
+        fillOpacity: visible ? 0.95 : 0.3,
+        rx: 4,
+        ry: 4,
+      },
+      labelBgPadding: [6, 3],
+      style: {
+        stroke: connectedToFocus ? "#22d3ee" : visible ? baseColor : "#334155",
+        strokeWidth: connectedToFocus ? 2.5 : visible ? 1.5 : 1,
+        opacity: visible ? 0.85 : 0.15,
+      },
+    };
   });
 }
 
-export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusNodeId = null, graphKey = "initial", isSearching = false, matchedNodeIds = emptyMatchedNodeIds, nodes: inputNodes = [], onNodeSelect }: GraphCanvasProps) {
+export function GraphCanvas({
+  edges: inputEdges = [],
+  fitViewRequest = 0,
+  focusNodeId = null,
+  graphKey = "initial",
+  isSearching = false,
+  matchedNodeIds = emptyMatchedNodeIds,
+  nodes: inputNodes = [],
+  onNodeSelect,
+}: GraphCanvasProps) {
   const instance = useRef<ReactFlowInstance<Node<FlowCodeGraphNodeData>, Edge> | null>(null);
-  const layoutedNodes = useMemo(() => layoutFocusedGraph(inputNodes, inputEdges), [inputEdges, inputNodes]);
-  const connectedNodeIds = useMemo(() => !focusNodeId ? null : new Set([focusNodeId, ...inputEdges.flatMap((edge) => edge.source === focusNodeId ? [edge.target] : edge.target === focusNodeId ? [edge.source] : [])]), [focusNodeId, inputEdges]);
-  const initialNodes = useMemo(() => layoutedNodes.map((node) => ({ ...node, data: { ...node.data, focused: node.id === focusNodeId, matched: matchedNodeIds.has(node.id), dimmed: connectedNodeIds !== null && !connectedNodeIds.has(node.id) } })), [connectedNodeIds, focusNodeId, layoutedNodes, matchedNodeIds]);
-  const initialEdges = useMemo(() => flowEdges(inputEdges, matchedNodeIds, isSearching, focusNodeId), [focusNodeId, inputEdges, isSearching, matchedNodeIds]);
+
+  const layoutedNodes = useMemo(
+    () => layoutFocusedGraph(inputNodes, inputEdges),
+    [inputEdges, inputNodes],
+  );
+
+  const connectedNodeIds = useMemo(
+    () =>
+      !focusNodeId
+        ? null
+        : new Set([
+            focusNodeId,
+            ...inputEdges.flatMap((edge) =>
+              edge.source === focusNodeId
+                ? [edge.target]
+                : edge.target === focusNodeId
+                  ? [edge.source]
+                  : [],
+            ),
+          ]),
+    [focusNodeId, inputEdges],
+  );
+
+  const initialNodes = useMemo(
+    () =>
+      layoutedNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          focused: node.id === focusNodeId,
+          matched: matchedNodeIds.has(node.id),
+          dimmed: connectedNodeIds !== null && !connectedNodeIds.has(node.id),
+        },
+      })),
+    [connectedNodeIds, focusNodeId, layoutedNodes, matchedNodeIds],
+  );
+
+  const initialEdges = useMemo(
+    () => flowEdges(inputEdges, matchedNodeIds, isSearching, focusNodeId),
+    [focusNodeId, inputEdges, isSearching, matchedNodeIds],
+  );
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  useEffect(() => { setNodes([...initialNodes]); }, [graphKey, initialNodes, setNodes]);
-  useEffect(() => { setEdges([...initialEdges]); }, [graphKey, initialEdges, setEdges]);
-  useEffect(() => { if (fitViewRequest) requestAnimationFrame(() => instance.current?.fitView({ padding: 0.12, duration: 350 })); }, [fitViewRequest]);
   useEffect(() => {
-    const onResize = () => requestAnimationFrame(() => instance.current?.fitView({ padding: 0.12, duration: 200 }));
+    setNodes([...initialNodes]);
+  }, [graphKey, initialNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges([...initialEdges]);
+  }, [graphKey, initialEdges, setEdges]);
+
+  // Handle fitView requests with readable bounds
+  useEffect(() => {
+    if (fitViewRequest) {
+      requestAnimationFrame(() =>
+        instance.current?.fitView({ padding: 0.16, duration: 350, maxZoom: 1.1, minZoom: 0.45 }),
+      );
+    }
+  }, [fitViewRequest]);
+
+  useEffect(() => {
+    const onResize = () =>
+      requestAnimationFrame(() =>
+        instance.current?.fitView({ padding: 0.16, duration: 200, maxZoom: 1.1, minZoom: 0.45 }),
+      );
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Smoothly center on focused node with readable zoom
   useEffect(() => {
     const focusedNode = focusNodeId ? nodes.find((node) => node.id === focusNodeId) : null;
     if (focusedNode) {
-      const width = typeof focusedNode.style?.width === "number" ? focusedNode.style.width : entityNodeWidth;
-      const height = typeof focusedNode.style?.height === "number" ? focusedNode.style.height : entityNodeHeight;
-      instance.current?.setCenter(focusedNode.position.x + width / 2, focusedNode.position.y + height / 2, { duration: 350, zoom: 1.1 });
+      const width =
+        typeof focusedNode.style?.width === "number"
+          ? focusedNode.style.width
+          : entityNodeWidth;
+      const height =
+        typeof focusedNode.style?.height === "number"
+          ? focusedNode.style.height
+          : entityNodeHeight;
+      instance.current?.setCenter(
+        focusedNode.position.x + width / 2,
+        focusedNode.position.y + height / 2,
+        { duration: 350, zoom: 1.05 },
+      );
     }
   }, [focusNodeId, nodes]);
 
   const onInit: OnInit<Node<FlowCodeGraphNodeData>, Edge> = (reactFlowInstance) => {
     instance.current = reactFlowInstance;
-    requestAnimationFrame(() => reactFlowInstance.fitView({ padding: 0.12, maxZoom: 1.2 }));
+    requestAnimationFrame(() =>
+      reactFlowInstance.fitView({ padding: 0.16, maxZoom: 1.05, minZoom: 0.5 }),
+    );
   };
-  const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<FlowCodeGraphNodeData>) => {
-    onNodeSelect?.(node.id);
-  }, [onNodeSelect]);
+
+  const handleNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node<FlowCodeGraphNodeData>) => {
+      onNodeSelect?.(node.id);
+    },
+    [onNodeSelect],
+  );
 
   return (
-    <div className="h-full w-full overflow-hidden bg-[#060a10]">
+    <div className="relative h-full w-full overflow-hidden bg-[#060a10]">
+      {/* Subtle ambient lighting behind graph */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(14,165,233,0.05),transparent)]" />
+
       <ReactFlow
         key={graphKey}
         nodes={nodes}
@@ -246,7 +493,7 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
       >
         <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="#1e293b" />
         <Controls
-          className="!bottom-4 !left-4 !top-auto !rounded-lg !border-slate-700 !bg-slate-900/95 [&>button]:!border-slate-700 [&>button]:!bg-slate-900 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800"
+          className="!bottom-4 !left-4 !top-auto !rounded-xl !border-slate-800 !bg-slate-950/90 !shadow-xl !backdrop-blur-md [&>button]:!border-slate-800 [&>button]:!bg-slate-900/80 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800 hover:[&>button]:!fill-cyan-300"
           showInteractive={false}
         />
         <MiniMap
@@ -254,10 +501,24 @@ export function GraphCanvas({ edges: inputEdges = [], fitViewRequest = 0, focusN
           zoomable
           nodeColor={(node) => {
             const type = (node.data as FlowCodeGraphNodeData).nodeType;
-            return type === "project" ? "#e879f9" : type === "module" ? "#38bdf8" : type === "class" ? "#a78bfa" : type === "function" ? "#34d399" : type === "method" ? "#2dd4bf" : type === "variable" ? "#fbbf24" : "#22d3ee";
+            return type === "project"
+              ? "#e879f9"
+              : type === "module"
+                ? "#38bdf8"
+                : type === "class"
+                  ? "#a78bfa"
+                  : type === "function"
+                    ? "#34d399"
+                    : type === "method"
+                      ? "#2dd4bf"
+                      : type === "variable"
+                        ? "#fbbf24"
+                        : type === "api_route"
+                          ? "#fb7185"
+                          : "#38bdf8";
           }}
-          maskColor="rgba(2, 6, 23, 0.78)"
-          className="!bottom-4 !right-4 !top-auto !h-28 !w-40 !rounded-lg !border !border-slate-700 !bg-slate-900/95"
+          maskColor="rgba(2, 6, 23, 0.82)"
+          className="!bottom-4 !right-4 !top-auto !h-28 !w-44 !rounded-xl !border !border-slate-800 !bg-slate-950/90 !shadow-xl !backdrop-blur-md"
         />
       </ReactFlow>
     </div>

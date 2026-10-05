@@ -1,112 +1,165 @@
+"use client";
+
+import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { Project } from "@/types/project";
-import { useState, useEffect, useRef } from "react";
 
 type ProjectSelectorProps = {
   onSelect: (projectId: number) => void;
   projects: Project[];
   selectedProjectId: number | null;
+  className?: string;
 };
 
-export function ProjectSelector({ onSelect, projects, selectedProjectId }: ProjectSelectorProps) {
+export function ProjectSelector({
+  onSelect,
+  projects,
+  selectedProjectId,
+  className,
+}: ProjectSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIdx, setHighlightedIdx] = useState<number>(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        buttonRef.current?.contains(e.target as Node) ||
-        listRef.current?.contains(e.target as Node)
-      ) {
+      if (containerRef.current?.contains(e.target as Node)) {
         return;
       }
       setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Keyboard navigation for button and list
   const handleButtonKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       setIsOpen(true);
-      const startIdx = e.key === 'ArrowDown' ? 0 : projects.length - 1;
+      const startIdx = e.key === "ArrowDown" ? 0 : projects.length - 1;
       setHighlightedIdx(startIdx);
     }
   };
 
   const handleOptionKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       const next = (idx + 1) % projects.length;
       setHighlightedIdx(next);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
       const prev = (idx - 1 + projects.length) % projects.length;
       setHighlightedIdx(prev);
-    } else if (e.key === 'Enter' || e.key === ' ') {
+    } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       const proj = projects[idx];
-      onSelect(proj.id);
-      setIsOpen(false);
-    } else if (e.key === 'Escape') {
+      if (proj) {
+        onSelect(proj.id);
+        setIsOpen(false);
+      }
+    } else if (e.key === "Escape") {
       e.preventDefault();
       setIsOpen(false);
       buttonRef.current?.focus();
     }
   };
 
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const buttonLabel = selectedProject ? `${selectedProject.name} (#${selectedProject.id})` : (projects.length ? 'Select a project…' : 'No projects available');
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const buttonLabel = selectedProject
+    ? `${selectedProject.name} (#${selectedProject.id})`
+    : projects.length
+      ? "Select a project…"
+      : "No projects available";
 
   return (
-    <label className="flex min-w-0 items-center justify-between gap-4 rounded-xl border border-[#292929] bg-[#080808] px-5 py-3.5 text-xs font-mono">
-      <span className="shrink-0 font-semibold uppercase tracking-wider text-[#A3A3A3]">Active Project Context</span>
+    <div
+      ref={containerRef}
+      role="group"
+      aria-label="Active Project Context"
+      className={`relative flex min-w-0 items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-[#111111] px-3.5 py-2 text-xs font-mono shadow-sm ${
+        className ?? ""
+      }`}
+    >
+      <span className="shrink-0 font-semibold uppercase tracking-wider text-zinc-400 hidden sm:inline">
+        Active Project Context
+      </span>
       <div className="relative inline-block min-w-0 flex-1 max-w-xs">
         <button
           ref={buttonRef}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          className="w-full flex items-center justify-between rounded-lg border border-[#2A2A2A] bg-[#080808] px-3 py-1.5 text-xs font-medium text-white focus:outline-none focus:border-[#444444]"
-          onClick={() => setIsOpen(prev => !prev)}
+          className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-700/70 bg-[#18181b] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:border-zinc-500 focus:border-cyan-500/60 focus:outline-none"
+          onClick={() => setIsOpen((prev) => !prev)}
           onKeyDown={handleButtonKeyDown}
         >
-          <span className="truncate" title={buttonLabel}>{buttonLabel}</span>
-          <svg className="ml-2 h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 8l4 4 4-4" /></svg>
+          <span className="truncate whitespace-nowrap text-left" title={buttonLabel}>
+            {buttonLabel}
+          </span>
+          <ChevronDown
+            className={`size-3.5 shrink-0 text-zinc-400 transition-transform duration-150 ${
+              isOpen ? "rotate-180 text-cyan-400" : ""
+            }`}
+            aria-hidden="true"
+          />
         </button>
+
         {isOpen && (
           <ul
             ref={listRef}
             role="listbox"
-            className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-xl border border-[#303030] bg-[#080808] py-1 shadow-lg"
+            className="absolute right-0 top-full z-[100] mt-1.5 max-h-72 min-w-[260px] sm:min-w-[300px] w-max max-w-[calc(100vw-32px)] overflow-y-auto rounded-xl border border-zinc-700/80 bg-[#161616] p-1.5 shadow-2xl shadow-black/90 backdrop-blur-md"
             tabIndex={-1}
           >
-            {projects.map((project, idx) => {
-              const isSelected = project.id === selectedProjectId;
-              const isHighlighted = idx === highlightedIdx;
-              return (
-                <li
-                  key={project.id}
-                  role="option"
-                  aria-selected={isSelected}
-                  className={`flex cursor-pointer items-center justify-between px-3 py-1.5 text-xs ${isHighlighted ? 'bg-[#151515] text-white' : 'bg-transparent text-[#E5E5E5]'} ${isSelected ? 'bg-[#1A1A1A] text-white' : ''}`}
-                  onClick={() => { onSelect(project.id); setIsOpen(false); }}
-                  onMouseEnter={() => setHighlightedIdx(idx)}
-                  onKeyDown={(e) => handleOptionKeyDown(e, idx)}
-                >
-                  <span>{project.name} (#{project.id})</span>
-                  {isSelected && <span className="ml-2 h-full w-1.5 bg-[#A3A3A3]" />}
-                </li>
-              );
-            })}
+            {projects.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-zinc-500 italic">No projects available</li>
+            ) : (
+              projects.map((project, idx) => {
+                const isSelected = project.id === selectedProjectId;
+                const isHighlighted = idx === highlightedIdx;
+                return (
+                  <li
+                    key={project.id}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`group flex cursor-pointer items-center justify-between gap-4 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? "bg-zinc-800 text-white font-medium shadow-sm"
+                        : isHighlighted
+                          ? "bg-zinc-800/60 text-zinc-100"
+                          : "text-zinc-300 hover:bg-zinc-800/50 hover:text-white"
+                    }`}
+                    onClick={() => {
+                      onSelect(project.id);
+                      setIsOpen(false);
+                    }}
+                    onMouseEnter={() => setHighlightedIdx(idx)}
+                    onKeyDown={(e) => handleOptionKeyDown(e, idx)}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate whitespace-nowrap text-zinc-100 font-medium">
+                        {project.name}
+                      </span>
+                      <span className="font-mono text-[11px] text-zinc-400 group-hover:text-zinc-300 shrink-0">
+                        (#{project.id})
+                      </span>
+                    </div>
+                    {isSelected ? (
+                      <Check className="size-3.5 shrink-0 text-cyan-400" />
+                    ) : (
+                      <span className="size-3.5 shrink-0" />
+                    )}
+                  </li>
+                );
+              })
+            )}
           </ul>
         )}
       </div>
-    </label>
+    </div>
   );
 }
-

@@ -193,7 +193,7 @@ function AstPageInner() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-0 h-full overflow-hidden bg-[#000000]">
       {/* ── Page Header ── */}
-      <header className="shrink-0 border-b border-[#242424] bg-[#050505] px-6 py-4">
+      <header className="relative z-20 shrink-0 border-b border-[#242424] bg-[#050505] px-6 py-4">
         <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[#737373]">
           CODEGRAPH AI &nbsp;/&nbsp; STRUCTURAL ANALYSIS
         </p>

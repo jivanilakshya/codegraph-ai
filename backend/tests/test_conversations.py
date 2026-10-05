@@ -256,8 +256,29 @@ class ConversationServiceAndEndpointTests(unittest.TestCase):
             )
 
             self.assertGreater(conv.updated_at, old_updated_at)
-            # Automatic title generation for New Conversation
-            self.assertEqual(conv.title, "What is this repository?")
+    # ------------------------------------------------------------------ #
+    # 12. Update conversation title                                      #
+    # ------------------------------------------------------------------ #
+    @patch("app.api.v1.endpoints.conversations.ConversationService.update_conversation")
+    def test_update_conversation_endpoint(self, mock_update) -> None:
+        mock_conv = MagicMock(spec=Conversation)
+        mock_conv.id = 42
+        mock_conv.project_id = 7
+        mock_conv.title = "Renamed Chat"
+        mock_conv.created_at = datetime.now(timezone.utc)
+        mock_conv.updated_at = datetime.now(timezone.utc)
+        mock_update.return_value = mock_conv
+
+        response = self.client.patch(
+            "/api/v1/conversations/42?project_id=7",
+            json={"title": "Renamed Chat"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], 42)
+        self.assertEqual(data["title"], "Renamed Chat")
+        mock_update.assert_called_once_with(42, title="Renamed Chat", project_id=7)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,22 @@ from app.services.project_scope_service import ProjectScopeService
 logger = logging.getLogger(__name__)
 
 
+def generate_chat_title(content: str) -> str:
+    """Generate a concise 3-6 word conversation title from the first message."""
+    cleaned = content.strip().replace("\n", " ")
+    words = [w for w in cleaned.split(" ") if w]
+    if not words:
+        return "New Chat"
+    selected_words = words[:6]
+    title = " ".join(selected_words)
+    title = title.rstrip("?,:;.")
+    if len(title) > 50:
+        title = title[:47] + "..."
+    if title:
+        title = title[0].upper() + title[1:]
+    return title or "New Chat"
+
+
 class ConversationNotFoundError(Exception):
     """Raised when a conversation does not exist or belong to the specified project."""
 
@@ -31,7 +47,7 @@ class ConversationService:
 
         clean_title = (title or "").strip()
         if not clean_title:
-            clean_title = "New Conversation"
+            clean_title = "New Chat"
         if len(clean_title) > 255:
             clean_title = clean_title[:255]
 
@@ -152,9 +168,9 @@ class ConversationService:
                 conversation = session.get(Conversation, conversation_id)
                 if conversation is not None:
                     conversation.updated_at = datetime.now(timezone.utc)
-                    # If this is the first user message and title is default, update title to question prefix
-                    if role == "user" and conversation.title == "New Conversation":
-                        new_title = clean_content[:60].strip()
+                    # If this is the first user message and title is default, auto-generate sensible title
+                    if role == "user" and conversation.title in ("New Conversation", "New Chat"):
+                        new_title = generate_chat_title(clean_content)
                         if new_title:
                             conversation.title = new_title
 
@@ -164,6 +180,36 @@ class ConversationService:
         except SQLAlchemyError as error:
             logger.exception("Could not add message to conversation %s", conversation_id)
             raise RuntimeError("Could not save message.") from error
+
+    def update_conversation(
+        self, conversation_id: int, title: str, project_id: int | None = None
+    ) -> Conversation:
+        """Update conversation title."""
+        clean_title = title.strip()
+        if not clean_title:
+            raise ValueError("Conversation title cannot be empty.")
+        if len(clean_title) > 255:
+            clean_title = clean_title[:255]
+
+        self.get_conversation(conversation_id, project_id=project_id)
+
+        try:
+            with SessionLocal() as session:
+                conversation = session.get(Conversation, conversation_id)
+                if conversation is None:
+                    raise ConversationNotFoundError(
+                        f"Conversation {conversation_id} was not found."
+                    )
+                conversation.title = clean_title
+                conversation.updated_at = datetime.now(timezone.utc)
+                session.commit()
+                session.refresh(conversation)
+                return conversation
+        except ConversationNotFoundError:
+            raise
+        except SQLAlchemyError as error:
+            logger.exception("Could not update conversation %s", conversation_id)
+            raise RuntimeError("Could not update conversation.") from error
 
     def delete_conversation(
         self, conversation_id: int, project_id: int | None = None

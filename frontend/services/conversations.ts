@@ -83,6 +83,38 @@ export async function addChatMessage(
   return (await response.json()) as ChatMessage;
 }
 
+export async function updateConversationTitle(
+  conversationId: number,
+  title: string,
+  projectId?: number
+): Promise<Conversation> {
+  const query = projectId ? `?project_id=${projectId}` : "";
+  const response = await fetch(`${apiBaseUrl}/api/v1/conversations/${conversationId}${query}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!response.ok) {
+    const errorPayload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    throw new Error(errorPayload?.detail ?? "Could not update conversation title.");
+  }
+
+  return (await response.json()) as Conversation;
+}
+
+export function generateChatTitle(content: string): string {
+  const cleaned = content.trim().replace(/\s+/g, " ");
+  const words = cleaned.split(" ").filter(Boolean);
+  if (words.length === 0) return "New Chat";
+  const selectedWords = words.slice(0, 6);
+  let title = selectedWords.join(" ").replace(/[?,:;.]+$/, "");
+  if (title) {
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+  }
+  return title || "New Chat";
+}
+
 export async function deleteConversation(
   conversationId: number,
   projectId?: number
@@ -98,3 +130,5 @@ export async function deleteConversation(
     throw new Error(errorPayload?.detail ?? "Could not delete conversation.");
   }
 }
+
+

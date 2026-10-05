@@ -12,6 +12,12 @@ class ConversationCreate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
 
 
+class ConversationUpdate(BaseModel):
+    """Payload for updating an existing conversation."""
+
+    title: str = Field(..., min_length=1, max_length=255)
+
+
 class ConversationResponse(BaseModel):
     """Conversation metadata returned by the API."""
 
