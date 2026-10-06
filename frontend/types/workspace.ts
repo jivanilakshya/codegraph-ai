@@ -33,6 +33,29 @@ export interface AstPoint {
   column: number;
 }
 
+export type AstType =
+  | "Module"
+  | "Import"
+  | "Class"
+  | "Function"
+  | "Variable"
+  | "Parameter"
+  | "Identifier"
+  | "Statement"
+  | "Expression";
+
+export interface AstEntity {
+  id: string;
+  type: AstType;
+  name: string;
+  description: string;
+  line: string;
+  parent: string;
+  children: number;
+  source?: string;
+  rawNode?: AstNodeData;
+}
+
 export interface AstNodeData {
   type: string;
   is_named: boolean;

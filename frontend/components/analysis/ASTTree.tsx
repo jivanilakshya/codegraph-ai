@@ -278,6 +278,150 @@ export function getAstSearchMatchCount(
   return searchMatches(ast, searchTerm, sourceText).matches;
 }
 
+export function flattenAstToEntities(
+  ast: AstNodeData,
+  sourceText: string | null,
+  fileName?: string
+): import("@/types/workspace").AstEntity[] {
+  const entities: import("@/types/workspace").AstEntity[] = [];
+  const lines = sourceText ? sourceText.split("\n") : [];
+
+  function getSnippet(node: AstNodeData): string | undefined {
+    if (!sourceText || lines.length === 0) return undefined;
+    const startLine = node.start_point.row;
+    const endLine = node.end_point.row;
+    if (startLine < 0 || startLine >= lines.length) return undefined;
+    if (startLine === endLine) {
+      return lines[startLine]?.slice(node.start_point.column, node.end_point.column)?.trim();
+    }
+    const sliced = [
+      lines[startLine]?.slice(node.start_point.column),
+      ...lines.slice(startLine + 1, endLine),
+      lines[endLine]?.slice(0, node.end_point.column),
+    ].filter((l) => l !== undefined);
+    return sliced.join("\n")?.trim();
+  }
+
+  function classifyType(rawType: string): import("@/types/workspace").AstType {
+    if (
+      rawType === "module" ||
+      rawType === "translation_unit" ||
+      rawType === "program" ||
+      rawType === "file"
+    )
+      return "Module";
+    if (
+      rawType.includes("import") ||
+      rawType.includes("use_declaration") ||
+      rawType.includes("include")
+    )
+      return "Import";
+    if (
+      rawType.includes("class") ||
+      rawType.includes("struct") ||
+      rawType.includes("interface") ||
+      rawType.includes("enum")
+    )
+      return "Class";
+    if (
+      rawType.includes("function") ||
+      rawType.includes("method") ||
+      rawType.includes("fn_") ||
+      rawType.includes("arrow_function") ||
+      rawType.includes("declarator")
+    )
+      return "Function";
+    if (
+      rawType.includes("variable") ||
+      rawType.includes("assignment") ||
+      rawType.includes("field") ||
+      rawType.includes("const") ||
+      rawType.includes("let")
+    )
+      return "Variable";
+    if (rawType.includes("param") || rawType.includes("arg")) return "Parameter";
+    if (rawType.includes("ident") || rawType === "name") return "Identifier";
+    if (rawType.includes("expr") || rawType.includes("call") || rawType.includes("op"))
+      return "Expression";
+    if (
+      rawType.includes("stmt") ||
+      rawType.includes("if") ||
+      rawType.includes("for") ||
+      rawType.includes("while") ||
+      rawType.includes("block") ||
+      rawType.includes("return") ||
+      rawType.includes("try")
+    )
+      return "Statement";
+    return "Statement";
+  }
+
+  function getDescription(
+    type: import("@/types/workspace").AstType,
+    node: AstNodeData,
+    name: string
+  ): string {
+    switch (type) {
+      case "Module":
+        return "Source code module container";
+      case "Import":
+        return `Imported dependency declaration (${name})`;
+      case "Class":
+        return `Class or structure declaration (${name})`;
+      case "Function":
+        return `Callable function or method definition (${name})`;
+      case "Variable":
+        return `Variable declaration or assignment (${name})`;
+      case "Parameter":
+        return `Typed function parameter (${name})`;
+      case "Identifier":
+        return `Symbol reference identifier (${name})`;
+      case "Statement":
+        return `Control flow or executable statement (${node.type})`;
+      case "Expression":
+        return `Evaluated expression or operation (${node.type})`;
+    }
+  }
+
+  let counter = 0;
+
+  function traverse(node: AstNodeData, parentName: string) {
+    const startLine = node.start_point.row + 1;
+    const endLine = node.end_point.row + 1;
+    const lineStr =
+      startLine === endLine
+        ? `Line ${startLine}`
+        : `Lines ${startLine}–${endLine}`;
+
+    const info = getAstNodeDisplayInfo(node, sourceText, fileName);
+    const mappedType = classifyType(node.type);
+    const snippet = getSnippet(node);
+
+    const entity: import("@/types/workspace").AstEntity = {
+      id: `${node.type}-${counter++}`,
+      type: mappedType,
+      name: info.name,
+      description: getDescription(mappedType, node, info.name),
+      line: lineStr,
+      parent: parentName,
+      children: node.children.length,
+      source: snippet,
+      rawNode: node,
+    };
+
+    entities.push(entity);
+
+    for (const child of node.children) {
+      if (child.is_named || child.children.length > 0) {
+        traverse(child, info.name);
+      }
+    }
+  }
+
+  traverse(ast, "Root");
+  return entities;
+}
+
 export function ASTTree({
   ast,
   searchTerm,

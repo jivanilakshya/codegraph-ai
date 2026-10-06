@@ -1,196 +1,187 @@
 "use client";
 
-import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import {
+  Braces,
+  ChevronRight,
+  ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import React, { useState } from "react";
 
-import { getAstNodeDisplayInfo } from "@/components/analysis/ASTTree";
+import { KIND_VISUAL, type HierarchyNode } from "@/components/analysis/ASTHierarchy";
 import { buildSourceLocationUrl } from "@/lib/navigation";
-import type { AstNodeData } from "@/types/workspace";
+import type { RepositoryFile } from "@/types/workspace";
 
 type ASTDetailsProps = {
-  node: AstNodeData | null;
-  nodeId?: string;
-  sourceText: string | null;
+  selectedNode: HierarchyNode | null;
+  selectedFile: RepositoryFile | null;
   projectId?: number | null;
-  fileId?: number | null;
-  filePath?: string | null;
   className?: string;
 };
 
-function sourceSnippet(node: AstNodeData, sourceText: string | null): string | null {
-  if (!sourceText) return null;
-  const lines = sourceText.split("\n");
-  const startLine = lines[node.start_point.row];
-  const endLine = lines[node.end_point.row];
-  if (startLine === undefined || endLine === undefined) return null;
-  if (node.start_point.row === node.end_point.row)
-    return startLine.slice(node.start_point.column, node.end_point.column);
-  return [
-    startLine.slice(node.start_point.column),
-    ...lines.slice(node.start_point.row + 1, node.end_point.row),
-    endLine.slice(0, node.end_point.column),
-  ].join("\n");
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[84px_1fr] gap-2 py-2 border-b border-white/[0.045] last:border-0 items-start">
+      <dt className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-white/40 pt-0.5 font-medium">{label}</dt>
+      <dd className="font-mono text-[12px] text-white/85 break-all leading-relaxed">{value}</dd>
+    </div>
+  );
 }
 
-export function ASTDetails({
-  node,
-  sourceText,
-  projectId,
-  fileId,
-  filePath,
-  className,
-}: ASTDetailsProps) {
-  const [sourceOpen, setSourceOpen] = useState(true);
+export function ASTDetails({ selectedNode, selectedFile, projectId, className }: ASTDetailsProps) {
+  const [sourceOpen, setSourceOpen] = useState(false);
 
-  if (!node) {
+  const fileName = selectedFile
+    ? selectedFile.path.split("/").pop() ?? selectedFile.path
+    : null;
+
+  const lang =
+    selectedFile?.language ??
+    (fileName?.endsWith(".py")
+      ? "Python"
+      : fileName?.endsWith(".ts") || fileName?.endsWith(".tsx")
+      ? "TypeScript"
+      : fileName?.endsWith(".js") || fileName?.endsWith(".jsx")
+      ? "JavaScript"
+      : fileName?.endsWith(".rs")
+      ? "Rust"
+      : fileName?.endsWith(".go")
+      ? "Go"
+      : fileName?.endsWith(".md")
+      ? "Markdown"
+      : "Code");
+
+  if (!selectedNode) {
     return (
-      <aside
-        className={`flex flex-col border-l border-[#242424] bg-[#080808] p-5 font-mono select-none ${
-          className ?? "w-[280px] lg:w-[300px] shrink-0 h-full"
-        }`}
-      >
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#737373] mb-4">
-          NODE DETAILS
-        </h2>
-        <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
-          <p className="text-xs text-[#737373]">No node selected</p>
-          <p className="mt-1 text-[11px] text-[#444444]">
-            Click an AST node card to inspect its details.
+      <aside className={`flex flex-col border-l border-white/[0.06] bg-gradient-to-b from-[#0a0d16]/95 to-[#070910]/95 ${className ?? ""}`}>
+        <div className="h-11 flex items-center gap-2 px-3.5 border-b border-white/[0.06] shrink-0">
+          <Braces className="w-4 h-4 text-[#00e5ff]/70" />
+          <span className="font-mono text-[11.5px] tracking-[0.12em] uppercase text-white/50 font-semibold">AST Details</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-5 py-10">
+          <span className="mx-auto w-11 h-11 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <Braces className="w-5 h-5 text-white/30" strokeWidth={1.5} />
+          </span>
+          <p className="text-[14px] font-medium text-white/70">No element selected</p>
+          <p className="mt-1 font-mono text-[11.5px] leading-relaxed text-white/30">
+            Click any AST element<br />to inspect its details.
           </p>
         </div>
       </aside>
     );
   }
 
-  const displayInfo = getAstNodeDisplayInfo(
-    node,
-    sourceText,
-    filePath ? filePath.split("/").pop() : undefined
-  );
-  const snippet = sourceSnippet(node, sourceText);
-  const startLine = node.start_point.row + 1;
-  const endLine = node.end_point.row + 1;
-  const startCol = node.start_point.column;
-  const endCol = node.end_point.column;
-  const canNavigate = projectId != null && (fileId != null || filePath != null);
+  const visual = KIND_VISUAL[selectedNode.kind] ?? KIND_VISUAL.other;
+  const Icon = visual.icon;
+  const rawNode = selectedNode.rawNode;
+  const startLine = rawNode.start_point.row + 1;
+  const endLine = rawNode.end_point.row + 1;
+  const startCol = rawNode.start_point.column;
+  const endCol = rawNode.end_point.column;
+  const canNavigate = projectId != null && selectedFile != null;
+
+  // Children summary
+  const childKinds = selectedNode.children.map((c) => c.label);
+  const childSummary =
+    childKinds.length > 4
+      ? [...childKinds.slice(0, 3), `+${childKinds.length - 3} more`].join(", ")
+      : childKinds.join(", ");
 
   return (
-    <aside
-      className={`flex flex-col border-l border-[#242424] bg-[#080808] font-mono select-none overflow-y-auto ${
-        className ?? "w-[280px] lg:w-[300px] shrink-0 h-full"
-      }`}
-    >
+    <aside className={`flex flex-col border-l border-white/[0.06] bg-gradient-to-b from-[#0a0d16]/95 to-[#070910]/95 overflow-y-auto ${className ?? ""}`}>
       {/* Header */}
-      <div className="p-4 border-b border-[#1A1A1A]">
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#737373] mb-3">
-          NODE DETAILS
-        </h2>
-
-        {/* Selected Node Card Summary */}
-        <div className="rounded-lg border border-[#292929] bg-[#050505] p-3">
-          <div className="inline-block rounded border border-[#242424] bg-[#0F0F0F] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#A3A3A3] mb-1.5">
-            {displayInfo.typeLabel}
-          </div>
-          <div className="text-[15px] font-bold text-white truncate tracking-tight" title={displayInfo.name}>
-            {displayInfo.name}
-          </div>
-          <div className="text-[11px] text-[#737373] mt-0.5">{displayInfo.metadata}</div>
-        </div>
+      <div className="h-11 flex items-center gap-2 px-3.5 border-b border-white/[0.06] shrink-0 sticky top-0 bg-[#0b0e18]/95 backdrop-blur z-10">
+        <Braces className="w-4 h-4 text-[#00e5ff]/80" />
+        <span className="font-mono text-[11.5px] tracking-[0.12em] uppercase text-white/50 font-semibold">AST Details</span>
+        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
       </div>
 
-      {/* Property Details List */}
-      <div className="p-4 space-y-3.5 border-b border-[#1A1A1A] text-xs">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555] block mb-0.5">
-            TYPE
-          </span>
-          <span className="text-[13px] font-mono font-medium text-[#E5E5E5] break-all">
-            {node.type}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555] block mb-0.5">
-              START
+      <div key={selectedNode.id} className="p-4 space-y-4 cg-pop">
+        {/* Summary card */}
+        <div className="rounded-xl border border-[#00e5ff]/20 bg-[#00e5ff]/[0.035] p-3.5">
+          <div className="flex items-start gap-3">
+            <span className="w-9.5 h-9.5 rounded-lg border border-[#00e5ff]/25 bg-[#00e5ff]/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+              <Icon className={`w-4.5 h-4.5 ${visual.tone}`} />
             </span>
-            <span className="text-[12px] text-[#A3A3A3]">
-              Line {startLine}, Col {startCol + 1}
-            </span>
+            <div className="min-w-0 flex-1">
+              <div className={`font-mono text-[10.5px] tracking-[0.14em] uppercase font-bold ${visual.tone}`}>
+                {visual.label}
+              </div>
+              <div className="mt-0.5 font-mono text-[14px] font-semibold text-white leading-tight break-all">
+                {selectedNode.label}
+              </div>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555] block mb-0.5">
-              END
-            </span>
-            <span className="text-[12px] text-[#A3A3A3]">
-              Line {endLine}, Col {endCol + 1}
-            </span>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] font-mono text-[11px] text-white/40">
+            {fileName ?? "—"} · {selectedNode.meta}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555] block mb-0.5">
-              NAMED
-            </span>
-            <span className="text-[12px] text-[#A3A3A3]">{node.is_named ? "Yes" : "No"}</span>
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555] block mb-0.5">
-              CHILDREN
-            </span>
-            <span className="text-[12px] text-[#A3A3A3]">{node.children.length}</span>
-          </div>
-        </div>
+        {/* Property table */}
+        <dl className="space-y-0">
+          <Row label="Type" value={<span className="font-semibold text-white">{visual.label}</span>} />
+          <Row label="Raw Type" value={<span className="text-white/60">{rawNode.type}</span>} />
+          <Row label="File" value={fileName ?? "—"} />
+          <Row label="Language" value={lang} />
+          <Row
+            label="Lines"
+            value={startLine === endLine ? `${startLine}` : `${startLine} – ${endLine}`}
+          />
+          <Row label="Start" value={`L${startLine}:${startCol + 1}`} />
+          <Row label="End" value={`L${endLine}:${endCol + 1}`} />
+          <Row label="Children" value={String(selectedNode.children.length)} />
+          {childSummary && (
+            <Row
+              label="Contains"
+              value={<span className="text-white/60 text-[11px]">{childSummary}</span>}
+            />
+          )}
+        </dl>
 
-        {/* View in Editor Button */}
+        {/* Jump to editor */}
         {canNavigate && (
-          <div className="pt-2">
-            <Link
-              href={buildSourceLocationUrl({
-                projectId,
-                fileId,
-                filePath,
-                startLine,
-                endLine,
-                startColumn: startCol,
-                endColumn: endCol,
-              })}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#333333] bg-[#080808] px-3 py-2 text-xs font-medium text-[#E5E5E5] transition-all hover:border-[#555555] hover:bg-[#151515] hover:text-white"
+          <Link
+            href={buildSourceLocationUrl({
+              projectId,
+              fileId: selectedFile.id,
+              filePath: selectedFile.path,
+              startLine,
+              endLine,
+              startColumn: startCol,
+              endColumn: endCol,
+            })}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/[0.10] bg-white/[0.025] px-3 py-2 text-xs font-mono text-white/60 transition-all hover:border-[#00e5ff]/40 hover:bg-[#00e5ff]/[0.05] hover:text-[#00e5ff]"
+          >
+            <ExternalLink className="w-3 h-3" />
+            <span>View in Editor</span>
+          </Link>
+        )}
+
+        {/* Source code preview */}
+        {selectedNode.source && (
+          <div className="rounded-lg border border-white/[0.07] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSourceOpen((v) => !v)}
+              className="w-full h-8 px-3 flex items-center gap-2 bg-white/[0.015] hover:bg-white/[0.03] transition-colors"
             >
-              <ExternalLink className="size-3.5 text-[#A3A3A3]" />
-              <span>View in Editor</span>
-            </Link>
+              <ChevronRight
+                className={`w-3 h-3 text-[#00e5ff]/60 transition-transform duration-200 ${sourceOpen ? "rotate-90" : ""}`}
+              />
+              <span className="font-mono text-[8.5px] tracking-[0.12em] uppercase text-white/35">
+                Source Preview
+              </span>
+            </button>
+            {sourceOpen && (
+              <div className="border-t border-white/[0.06] bg-[#040608] cg-pop overflow-x-auto">
+                <pre className="p-3 font-mono text-[10px] leading-[1.7] text-[#b8c9e0] whitespace-pre">
+                  {selectedNode.source}
+                </pre>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Collapsible Source Code Section */}
-      {snippet && (
-        <div className="p-4 flex-1">
-          <button
-            type="button"
-            onClick={() => setSourceOpen((v) => !v)}
-            className="flex w-full items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#737373] hover:text-white transition-colors py-1"
-          >
-            <span>SOURCE CODE</span>
-            {sourceOpen ? (
-              <ChevronDown className="size-3 text-[#A3A3A3]" />
-            ) : (
-              <ChevronRight className="size-3 text-[#737373]" />
-            )}
-          </button>
-
-          {sourceOpen && (
-            <div className="mt-2.5">
-              <pre className="max-h-60 overflow-auto rounded-lg border border-[#1A1A1A] bg-[#050505] p-3 font-mono text-[11px] leading-[1.65] text-[#E5E5E5] whitespace-pre-wrap break-words">
-                {snippet}
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
     </aside>
   );
 }

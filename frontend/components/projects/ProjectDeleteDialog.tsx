@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, LoaderCircle, Trash2, X } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
+import { useEffect } from "react";
 
 type ProjectDeleteDialogProps = {
   projectName: string;
@@ -17,87 +18,78 @@ export function ProjectDeleteDialog({
   onClose,
   onConfirm,
 }: ProjectDeleteDialogProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isDeleting) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isDeleting, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 reveal" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
       {/* Backdrop */}
-      <button
-        type="button"
-        aria-label="Close delete dialog"
-        onClick={onClose}
-        disabled={isDeleting}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      <div
+        className="absolute inset-0 bg-[#03040a]/80 backdrop-blur-md"
+        onClick={() => !isDeleting && onClose()}
       />
 
-      {/* Panel Container */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-[#303030] bg-[#080808] p-6 shadow-2xl transition-all">
+      {/* Modal Container */}
+      <div className="relative w-full max-w-[500px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080a12]/95 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9),0_0_60px_-30px_rgba(244,63,94,0.3)] cg-pop">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-500/50 to-transparent" />
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-rose-900/50 bg-rose-950/30 text-rose-300">
-              <AlertTriangle className="size-5" />
-            </span>
-            <div>
-              <h2
-                id="delete-dialog-title"
-                className="font-sans text-lg font-bold text-white"
-              >
-                Delete Project
-              </h2>
-              <p className="mt-0.5 font-mono text-xs text-[#A3A3A3]">
-                This action cannot be undone.
-              </p>
-            </div>
+        <div className="flex items-start gap-4 p-6 pb-4">
+          <span className="w-11 h-11 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-rose-400" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h2 id="delete-dialog-title" className="text-[19px] font-semibold tracking-tight text-white">
+              Delete Project
+            </h2>
+            <p className="text-[13.5px] text-rose-300/80 mt-0.5">This action cannot be undone.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            className="grid size-8 place-items-center rounded-md text-[#737373] transition-colors hover:bg-[#151515] hover:text-white"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
             aria-label="Close"
           >
-            <X className="size-4" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="mt-5 rounded-lg border border-[#242424] bg-[#050505] p-4 font-mono text-xs text-[#A3A3A3]">
-          <p className="text-white">
-            You are about to permanently delete{" "}
-            <span className="font-bold underline text-white">
-              &ldquo;{projectName}&rdquo;
-            </span>
-            . The following will be removed:
+        {/* Content */}
+        <div className="px-6 py-2">
+          <p className="text-[14px] text-foreground/90">
+            You are about to permanently delete <strong className="text-white break-all">&ldquo;{projectName}&rdquo;</strong>.
           </p>
-          <ul className="mt-3 space-y-2 text-xs">
-            <li className="flex items-center gap-2 text-[#A3A3A3]">
-              <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
-              All scanned files and metadata
-            </li>
-            <li className="flex items-center gap-2 text-[#A3A3A3]">
-              <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
-              Code entities, relationships, and the graph
-            </li>
-            <li className="flex items-center gap-2 text-[#A3A3A3]">
-              <span className="size-1.5 shrink-0 rounded-full bg-rose-400" />
-              Local repository files on disk
-            </li>
-          </ul>
+          <div className="mt-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.015] font-mono text-[11.5px] text-muted-foreground space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              All scanned AST nodes, symbols & code entities
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              Graph relationships, dependencies & dead code stats
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              Local project workspace data from database
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-[#202020] pt-4">
+        <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-white/[0.06] mt-5">
           <button
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            className="h-9 rounded-lg border border-[#303030] bg-[#080808] px-4 font-mono text-xs font-semibold text-white transition-all hover:bg-[#151515] hover:border-[#555555] disabled:opacity-50"
+            className="h-10 px-4 rounded-lg border border-white/[0.1] text-sm text-white hover:border-white/25 hover:bg-white/[0.03] active:scale-[0.98] transition-all disabled:opacity-50"
           >
             Cancel
           </button>
@@ -106,13 +98,9 @@ export function ProjectDeleteDialog({
             id={`delete-confirm-${projectName.toLowerCase().replace(/\s+/g, "-")}`}
             onClick={onConfirm}
             disabled={isDeleting}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-900/60 bg-rose-950/40 px-4 font-mono text-xs font-bold text-rose-200 transition-all hover:bg-rose-900/60 hover:text-white disabled:cursor-wait disabled:opacity-70"
+            className="h-10 px-5 rounded-lg bg-rose-500 text-white text-sm font-semibold inline-flex items-center gap-2 shadow-[0_0_20px_-4px_rgba(244,63,94,0.5)] hover:bg-rose-600 disabled:opacity-50 active:scale-[0.98] transition-all"
           >
-            {isDeleting ? (
-              <LoaderCircle className="size-4 animate-spin" />
-            ) : (
-              <Trash2 className="size-4" />
-            )}
+            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
             <span>{isDeleting ? "Deleting…" : "Delete Project"}</span>
           </button>
         </div>
@@ -120,4 +108,5 @@ export function ProjectDeleteDialog({
     </div>
   );
 }
+
 

@@ -4,8 +4,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #090a0f;
+  --foreground: #e2e8f0;
   --surface-main: #050505;
   --surface-card: #0d0d0d;
   --surface-hover: #141414;
@@ -22,7 +22,7 @@
 
 html {
   height: 100%;
-  background-color: #000000;
+  background-color: #090a0f;
   color-scheme: dark;
   scroll-behavior: smooth;
 }
@@ -31,11 +31,12 @@ body {
   height: 100%;
   min-height: 100dvh;
   margin: 0;
-  background-color: #000000;
+  background-color: #090a0f;
   color: var(--text-primary);
   font-family: var(--font-geist-sans), Inter, system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .landing-shell {
@@ -2576,4 +2577,244 @@ body {
     animation: none !important;
     opacity: 0 !important;
   }
+}
+
+/* =========================================================
+   NEW CODEGRAPH AI DASHBOARD DESIGN (FIGMA TRUTH)
+   ========================================================= */
+
+.cg-ambient {
+  background:
+    radial-gradient(60% 45% at 58% 8%, rgba(0, 170, 255, 0.10), transparent 70%),
+    radial-gradient(35% 30% at 85% 35%, rgba(139, 92, 246, 0.06), transparent 70%),
+    radial-gradient(40% 35% at 20% 90%, rgba(0, 229, 255, 0.04), transparent 70%),
+    linear-gradient(180deg, #06070c 0%, #070912 50%, #05060a 100%);
+}
+
+.cg-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 197, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 197, 255, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(70% 60% at 55% 25%, #000 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(70% 60% at 55% 25%, #000 20%, transparent 80%);
+}
+
+.cg-noise {
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.reveal {
+  opacity: 0;
+  animation: cg-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--d, 0ms);
+}
+
+.reveal-fade {
+  opacity: 0;
+  animation: cg-fade 900ms ease-out forwards;
+}
+
+@keyframes cg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cg-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+.cg-surface {
+  background: linear-gradient(180deg, rgba(16, 20, 32, 0.72), rgba(10, 12, 20, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.cg-hairline {
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.5), transparent);
+}
+
+.cg-label {
+  font-family: var(--font-geist-mono), 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7d8aa0;
+}
+
+@keyframes cg-node {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@keyframes cg-edge {
+  from { stroke-dashoffset: 240; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes cg-scan {
+  0% { transform: translateX(-10%); opacity: 0; }
+  10%, 90% { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+
+@keyframes cg-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-6px, 4px); }
+}
+
+@keyframes cg-packet {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+@keyframes cg-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes cg-dot {
+  0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes cg-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.cg-node {
+  animation: cg-node 4.5s ease-in-out infinite;
+}
+
+.cg-edge-live {
+  stroke-dasharray: 40 200;
+  animation: cg-edge 6s linear infinite;
+}
+
+.cg-scanline {
+  animation: cg-scan 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.cg-drift {
+  animation: cg-drift 18s ease-in-out infinite;
+}
+
+.cg-packet {
+  offset-rotate: 0deg;
+  animation: cg-packet 3.2s linear infinite;
+}
+
+.cg-ring {
+  animation: cg-ring 2s ease-out infinite;
+}
+
+.cg-pop {
+  animation: cg-pop 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cg-dot {
+  animation: cg-dot 1.2s ease-in-out infinite;
+}
+
+.cg-refreshing .cg-metric {
+  filter: blur(3px);
+  opacity: 0.35;
+  transform: translateY(4px);
+}
+
+.cg-metric {
+  transition: filter 300ms ease, opacity 300ms ease, transform 300ms ease;
+}
+
+.glass-panel {
+  background: rgba(15, 17, 26, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glow-hover {
+  transition: all 0.2s ease;
+}
+
+.glow-hover:hover {
+  border-color: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-node, .cg-edge-live, .cg-scanline, .cg-drift, .cg-packet, .cg-ring, .cg-dot {
+    animation: none !important;
+  }
+  .reveal, .reveal-fade {
+    animation-duration: 1ms !important;
+  }
+  .ast-node, .ast-edge {
+    animation-duration: 1ms !important;
+  }
+}
+
+/* ── AST Hierarchy Workspace ────────────────────────────────────────────── */
+
+/* Hierarchy scroll container */
+.ast-hierarchy-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.06) transparent;
+}
+.ast-hierarchy-scroll::-webkit-scrollbar { width: 4px; }
+.ast-hierarchy-scroll::-webkit-scrollbar-track { background: transparent; }
+.ast-hierarchy-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 4px; }
+
+/* Hierarchy rows */
+.ast-hierarchy-row {
+  position: relative;
+  transition: background 120ms ease;
+}
+.ast-hierarchy-row:hover {
+  background: rgba(255,255,255,0.02);
+}
+.ast-hierarchy-row[aria-selected="true"] {
+  background: linear-gradient(to right, rgba(0,229,255,0.07), transparent);
+}
+
+/* Children expand/collapse panel — smooth height animation */
+.ast-children-panel {
+  animation: ast-children-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ast-children-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Legacy ast-results / ast-row kept for any remaining references */
+.ast-results {
+  background:
+    radial-gradient(55% 38% at 65% 5%, rgba(0, 229, 255, 0.03), transparent 75%),
+    linear-gradient(180deg, rgba(9, 12, 20, 0.35), rgba(4, 6, 11, 0.15));
+}
+.ast-row {
+  opacity: 0;
+  animation: ast-row-in 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+@keyframes ast-row-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .ast-children-panel { animation-duration: 1ms !important; }
+  .ast-row { animation-duration: 1ms !important; }
 }

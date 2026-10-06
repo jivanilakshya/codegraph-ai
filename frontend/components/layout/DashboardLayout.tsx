@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { cn } from "@/lib/cn";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -18,6 +19,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isSymbolsWorkspace = pathname === "/symbols" || pathname.startsWith("/symbols/");
   const isAstWorkspace = pathname === "/ast" || pathname.startsWith("/ast/");
   const isFullHeightWorkspace = isGraphWorkspace || isChatWorkspace || isRelationshipsWorkspace || isSymbolsWorkspace || isAstWorkspace;
+  const isDashboardRoute = pathname === "/dashboard";
+  const isProjectsRoute = pathname === "/projects" || pathname.startsWith("/projects/");
+  const isAmbientRoute = isDashboardRoute || isProjectsRoute;
   const shouldAutoCollapseSidebar = isFullHeightWorkspace;
 
   // Stored user preference for sidebar collapse state (default expanded: false)
@@ -27,7 +31,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Active rendering state for sidebar collapse
   const [collapsed, setCollapsed] = useState<boolean>(shouldAutoCollapseSidebar);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isDark, setIsDark] = useState(true);
 
   // Restore stored user preference on initial client mount
   useEffect(() => {
@@ -62,28 +65,58 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className={isDark ? "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-black text-white selection:bg-white selection:text-black" : "flex h-[100dvh] w-full min-h-0 min-w-0 overflow-hidden bg-slate-100 text-slate-950"}>
-      <Sidebar collapsed={collapsed} onToggle={handleToggleSidebar} />
+    <div className="min-h-screen w-full text-foreground selection:bg-primary/25 selection:text-white">
+      {/* Ambient background layers — rendered at layout level so they are visible behind all dashboard & project content */}
+      {isAmbientRoute && (
+        <div aria-hidden className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+          <div className="absolute inset-0 cg-ambient" />
+          <div className="absolute inset-0 cg-grid" />
+          <div className="absolute inset-0 cg-noise" />
+        </div>
+      )}
+
+      <Navbar
+        onOpenSidebar={() => setMobileOpen(true)}
+        sidebarOpen={!collapsed}
+      />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={handleToggleSidebar}
+      />
+
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button type="button" className="absolute inset-0 bg-slate-950/80" onClick={() => setMobileOpen(false)} aria-label="Close navigation" />
-          <div className="relative h-full w-64">
-            <Sidebar collapsed={false} mobile onToggle={() => setMobileOpen(false)} onNavigate={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+          />
+          <div className="relative h-full w-60">
+            <Sidebar
+              collapsed={false}
+              mobile
+              onToggle={() => setMobileOpen(false)}
+              onNavigate={() => setMobileOpen(false)}
+            />
           </div>
         </div>
       )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {!isGraphWorkspace ? (
-          <Navbar onOpenSidebar={() => setMobileOpen(true)} isDark={isDark} onToggleTheme={() => setIsDark((value) => !value)} />
-        ) : (
-          <div className="shrink-0 lg:hidden">
-            <Navbar onOpenSidebar={() => setMobileOpen(true)} isDark={isDark} onToggleTheme={() => setIsDark((value) => !value)} />
-          </div>
+
+      <main
+        className={cn(
+          "relative transition-all duration-300 pt-14 min-h-screen",
+          collapsed ? "lg:ml-[60px]" : "lg:ml-60",
+          isFullHeightWorkspace
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden h-[calc(100dvh-3.5rem)]"
+            : isAmbientRoute
+            ? "overflow-x-hidden"
+            : "bg-[#06070c] p-5 sm:p-8"
         )}
-        <main className={isFullHeightWorkspace ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" : "flex flex-col flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-5 sm:p-8"}>
-          {children}
-        </main>
-      </div>
+        style={isAmbientRoute ? { zIndex: 1 } : undefined}
+      >
+        {children}
+      </main>
     </div>
   );
 }

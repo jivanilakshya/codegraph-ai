@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, FileCode2, FileText, Folder, FolderOpen } from "lucide-react";
+import { ChevronRight, FileCode2, FileText, Folder, FolderOpen } from "lucide-react";
 import { useState } from "react";
 
 import type { RepositoryFile, TreeNodeData } from "@/types/workspace";
@@ -14,28 +14,43 @@ type TreeNodeProps = {
 
 export function TreeNode({ node, depth = 0, selectedFileId, onSelectFile }: TreeNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const indent = { paddingLeft: `${depth * 14 + 10}px` };
+  const indent = { paddingLeft: `${depth * 14 + 24}px` };
 
   if (node.type === "file") {
     const isSelected = node.file.id === selectedFileId;
+    const isMd = node.name.endsWith(".md");
+    const Icon = isMd ? FileText : FileCode2;
+
     return (
       <button
         type="button"
         onClick={() => onSelectFile(node.file)}
         style={indent}
         title={node.path}
-        className={`flex min-h-[30px] h-8 w-full items-center gap-2.5 pr-3 text-left font-mono text-[14px] sm:text-[15px] transition-all duration-150 ${
+        className={`group relative w-full flex items-center gap-2.5 h-8 pr-3 text-left transition-colors duration-200 ${
           isSelected
-            ? "border-l-2 border-white bg-[rgba(255,255,255,0.08)] text-white font-semibold shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]"
-            : "border-l-2 border-transparent text-[#A3A3A3] font-medium hover:bg-[rgba(255,255,255,0.04)] hover:text-white"
+            ? "bg-gradient-to-r from-cyan-400/10 to-transparent text-white font-medium"
+            : "text-[#9aa6b8] hover:bg-white/[0.03] hover:text-white"
         }`}
       >
-        {node.file.language ? (
-          <FileCode2 className="size-4 shrink-0 text-white opacity-80" />
-        ) : (
-          <FileText className="size-4 shrink-0 text-[#737373]" />
+        <span
+          className={`absolute left-0 top-1 bottom-1 w-[2px] rounded-full bg-[#00e5ff] transition-all duration-300 ${
+            isSelected ? "opacity-100 shadow-[0_0_8px_#00e5ff]" : "opacity-0"
+          }`}
+        />
+        <Icon
+          className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+            isSelected
+              ? "text-[#00e5ff]"
+              : isMd
+              ? "text-violet-300/70"
+              : "text-sky-300/60 group-hover:text-sky-300"
+          }`}
+        />
+        <span className="font-mono text-[12.5px] truncate">{node.name}</span>
+        {isSelected && (
+          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
         )}
-        <span className="truncate">{node.name}</span>
       </button>
     );
   }
@@ -44,41 +59,39 @@ export function TreeNode({ node, depth = 0, selectedFileId, onSelectFile }: Tree
     <div>
       <button
         type="button"
-        onClick={() => setIsExpanded((value) => !value)}
-        style={indent}
-        className="flex min-h-[30px] h-8 w-full items-center gap-2 pr-3 text-left font-mono text-[14px] sm:text-[15px] font-medium text-white transition-all duration-150 hover:bg-[rgba(255,255,255,0.04)]"
+        onClick={() => setIsExpanded((v) => !v)}
+        style={{ paddingLeft: `${depth * 14 + 12}px` }}
+        className="group relative w-full flex items-center gap-2.5 h-8 pr-3 text-left transition-colors duration-200 text-[#9aa6b8] hover:bg-white/[0.03] hover:text-white"
       >
+        <ChevronRight
+          className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 shrink-0 ${
+            isExpanded ? "rotate-90 text-[#00e5ff]" : ""
+          }`}
+        />
         {isExpanded ? (
-          <ChevronDown className="size-4 shrink-0 text-[#A3A3A3]" />
+          <FolderOpen className="w-3.5 h-3.5 text-[#00e5ff]/80 shrink-0" />
         ) : (
-          <ChevronRight className="size-4 shrink-0 text-[#737373]" />
+          <Folder className="w-3.5 h-3.5 text-sky-300/60 shrink-0 group-hover:text-sky-300" />
         )}
-        {isExpanded ? (
-          <FolderOpen className="size-4 shrink-0 text-white" />
-        ) : (
-          <Folder className="size-4 shrink-0 text-[#A3A3A3]" />
-        )}
-        <span className="truncate">{node.name}</span>
+        <span className="font-mono text-[12.5px] truncate font-medium text-white/90">
+          {node.name}
+        </span>
       </button>
 
-      {/* Smooth Expansion Transition */}
-      <div
-        className={`transition-all duration-200 ease-in-out ${
-          isExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
-        }`}
-      >
-        {node.children.map((child) => (
-          <TreeNode
-            key={child.path}
-            node={child}
-            depth={depth + 1}
-            selectedFileId={selectedFileId}
-            onSelectFile={onSelectFile}
-          />
-        ))}
-      </div>
+      {/* Expanded directory children */}
+      {isExpanded && (
+        <div className="relative">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              selectedFileId={selectedFileId}
+              onSelectFile={onSelectFile}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-

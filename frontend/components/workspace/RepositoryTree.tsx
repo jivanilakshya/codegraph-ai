@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderTree, RefreshCw } from "lucide-react";
+import { ChevronDown, FolderTree, RefreshCw, Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import type { RepositoryFile, TreeFolder, TreeNodeData } from "@/types/workspace";
 
@@ -13,6 +14,7 @@ type RepositoryTreeProps = {
   isLoading: boolean;
   onSelectFile: (file: RepositoryFile) => void;
   onRefresh: () => void;
+  projectName?: string;
 };
 
 function createTree(files: RepositoryFile[]): TreeNodeData[] {
@@ -57,59 +59,114 @@ export function RepositoryTree({
   isLoading,
   onSelectFile,
   onRefresh,
+  projectName = "Active Project",
 }: RepositoryTreeProps) {
-  const tree = createTree(files);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredFiles = useMemo(() => {
+    if (!searchQuery.trim()) return files;
+    const query = searchQuery.toLowerCase();
+    return files.filter((f) => f.path.toLowerCase().includes(query));
+  }, [files, searchQuery]);
+
+  const tree = useMemo(() => createTree(filteredFiles), [filteredFiles]);
 
   return (
-    <aside className={`flex min-h-0 flex-col bg-[#050505] ${className ?? "h-[min(50vh,24rem)] border-b border-[#242424] lg:h-auto lg:border-b-0 lg:border-r"}`}
-      >
-        {/* Explorer Header Toolbar */}
-        <div className="flex h-12 items-center justify-between border-b border-[#242424] bg-[#0A0A0A] px-4 select-none">
-          <span className="flex items-center gap-2.5 font-mono text-[15px] sm:text-[16px] font-bold uppercase tracking-wider text-white">
-            <FolderTree className="size-4 text-white" />
-            <span>EXPLORER</span>
-            <span className="ml-1 text-xs font-normal text-[#737373]">({files.length})</span>
+    <aside
+      className={`flex flex-col min-h-0 border-b md:border-b-0 md:border-r border-white/[0.06] bg-gradient-to-b from-[#0b0e18]/90 to-[#080a12]/90 ${
+        className ?? ""
+      }`}
+    >
+      {/* Explorer Header Toolbar */}
+      <div className="h-12 flex items-center gap-2 pl-4 pr-2 border-b border-white/[0.06] shrink-0 select-none">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <FolderTree className="w-3.5 h-3.5 text-[#00e5ff]/80" />
+          <span className="cg-label !text-foreground/80">Explorer</span>
+          <span className="font-mono text-[10.5px] text-muted-foreground px-1.5 py-0.5 rounded border border-white/[0.08] shrink-0">
+            {files.length} files
           </span>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          title="Refresh repository file list"
+          aria-label="Refresh repository file list"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-[#00e5ff] hover:bg-[#00e5ff]/[0.06] hover:shadow-[0_0_14px_-4px_rgba(0,229,255,0.5)] active:scale-[0.98] transition-all"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${
+              isLoading
+                ? "rotate-[360deg] text-[#00e5ff] transition-transform duration-[800ms] ease-out"
+                : "rotate-0"
+            }`}
+          />
+        </button>
+      </div>
 
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="grid size-7.5 place-items-center rounded-md border border-[#292929] bg-[#080808] text-[#A3A3A3] transition-all hover:border-[#444444] hover:bg-[#151515] hover:text-white"
-            aria-label="Refresh repository"
-            title="Refresh repository structure"
-          >
-            <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin text-white" : ""}`} />
-          </button>
+      {/* Quick Search Filter */}
+      {files.length > 5 && (
+        <div className="px-3 py-2 border-b border-white/[0.04]">
+          <div className="flex items-center gap-2 px-2.5 h-7 rounded-md border border-white/[0.07] bg-white/[0.02] text-xs text-muted-foreground focus-within:border-[#00e5ff]/40 focus-within:bg-white/[0.04] transition-colors">
+            <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter files…"
+              className="bg-transparent border-none outline-none text-[11.5px] font-mono text-white placeholder:text-muted-foreground/60 w-full"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-muted-foreground hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Scrollable File Tree Container */}
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto py-2 ${
+          isLoading ? "opacity-40 transition-opacity" : ""
+        }`}
+      >
+        <div className="px-4 pt-1 pb-2 flex items-center gap-1.5 font-mono text-[10.5px] text-muted-foreground select-none">
+          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          <span className="truncate">{projectName}</span>
         </div>
 
-      {/* Scrollable File Tree */}
-      <div className="min-h-0 flex-1 overflow-auto py-2 font-mono text-xs select-none">
-        {isLoading ? (
-          <div className="space-y-2 px-4 pt-3">
-            {Array.from({ length: 9 }, (_, index) => (
-              <div
-                key={index}
-                className="h-5 animate-pulse rounded bg-[#121212]"
-                style={{ width: `${50 + (index % 4) * 12}%` }}
+        <div className="relative">
+          <span className="absolute left-[22px] top-0 bottom-2 w-px bg-white/[0.05]" />
+          {isLoading ? (
+            <div className="space-y-2 px-4 pt-2">
+              {Array.from({ length: 9 }, (_, i) => (
+                <div
+                  key={i}
+                  className="h-5 animate-pulse rounded bg-white/[0.04]"
+                  style={{ width: `${50 + (i % 4) * 12}%` }}
+                />
+              ))}
+            </div>
+          ) : tree.length ? (
+            tree.map((node) => (
+              <TreeNode
+                key={node.path}
+                node={node}
+                selectedFileId={selectedFileId}
+                onSelectFile={onSelectFile}
               />
-            ))}
-          </div>
-        ) : tree.length ? (
-          tree.map((node) => (
-            <TreeNode
-              key={node.path}
-              node={node}
-              selectedFileId={selectedFileId}
-              onSelectFile={onSelectFile}
-            />
-          ))
-        ) : (
-          <p className="px-4 pt-6 font-mono text-xs leading-relaxed text-[#737373]">
-            No scanned files. Run a project scan, then refresh this workspace.
-          </p>
-        )}
+            ))
+          ) : (
+            <p className="px-4 pt-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
+              {searchQuery ? "No files match your search filter." : "No files scanned in this repository workspace."}
+            </p>
+          )}
+        </div>
       </div>
     </aside>
   );
 }
-

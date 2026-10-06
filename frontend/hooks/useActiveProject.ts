@@ -89,10 +89,10 @@ export function useActiveProject(explicitRouteProjectId?: number | null) {
       localStorage.setItem("activeProjectId", String(projectId));
       localStorage.setItem("activeProjectName", targetProject.name);
 
-      // Update URL query parameters
+      // Update URL query parameters without auto-scrolling to top
       const params = new URLSearchParams(searchParams.toString());
       params.set("projectId", String(projectId));
-      router.push(`${pathname}?${params.toString()}`);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [projects, pathname, router, searchParams]
   );

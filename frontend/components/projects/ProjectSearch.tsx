@@ -1,3 +1,5 @@
+"use client";
+
 import { Search, X } from "lucide-react";
 
 type ProjectSearchProps = {
@@ -7,27 +9,27 @@ type ProjectSearchProps = {
 
 export function ProjectSearch({ value, onChange }: ProjectSearchProps) {
   return (
-    <label className="relative block max-w-xl flex-1">
-      <span className="sr-only">Search projects</span>
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#737373]" />
+    <label className="group flex-1 flex items-center gap-3 h-11 px-4 rounded-xl border border-white/[0.08] bg-white/[0.02] backdrop-blur focus-within:border-primary/40 focus-within:bg-white/[0.035] focus-within:shadow-[0_0_0_3px_rgba(0,229,255,0.06),0_0_24px_-8px_rgba(0,229,255,0.4)] transition-all duration-300">
+      <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
       <input
-        type="search"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
+        type="text"
         placeholder="Search projects by name or repository URL..."
-        className="h-10 w-full rounded-lg border border-[#242424] bg-[#050505] pl-10 pr-10 font-mono text-xs text-white outline-none transition-all placeholder:text-[#737373] focus:border-[rgba(255,255,255,0.4)] focus:shadow-[0_0_16px_rgba(255,255,255,0.05)]"
+        className="flex-1 min-w-0 bg-transparent outline-none text-[14px] text-white placeholder:text-muted-foreground/70 font-sans"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-[#737373] transition-colors hover:bg-[#151515] hover:text-white"
+          className="p-1 rounded text-muted-foreground hover:text-white transition-colors"
           aria-label="Clear search"
         >
-          <X className="size-3.5" />
+          <X className="w-3.5 h-3.5" />
         </button>
       )}
     </label>
   );
 }
+
 

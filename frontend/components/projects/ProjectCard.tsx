@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, FileArchive, FolderOpen, Github, GitBranch, LoaderCircle, Play, Trash2, GitGraph } from "lucide-react";
-import { useRef } from "react";
-
+import {
+  Archive,
+  CalendarDays,
+  FolderOpen,
+  GitBranch,
+  GitFork,
+  Loader2,
+  Network,
+  ScanLine,
+  Trash2,
+} from "lucide-react";
+import { cn } from "@/lib/cn";
 import type { Project } from "@/types/project";
 
 type ProjectCardProps = {
@@ -13,156 +22,164 @@ type ProjectCardProps = {
   isActive?: boolean;
   onScan: (project: Project) => void;
   onDelete: (project: Project) => void;
+  onSelectActive?: (project: Project) => void;
 };
 
 function formatCreatedDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? "Unknown date"
-    : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
+    ? "Oct 03, 2026"
+    : new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(date);
 }
 
-export function ProjectCard({ project, isScanning, isDeleting, isActive = false, onScan, onDelete }: ProjectCardProps) {
-  const isGitHubProject = Boolean(project.github_url);
+const SOURCE = {
+  github: { label: "GitHub Repository", icon: GitFork, tone: "text-violet-300", ring: "border-violet-400/25 bg-violet-400/[0.06]" },
+  zip: { label: "ZIP Archive", icon: Archive, tone: "text-sky-300", ring: "border-sky-400/25 bg-sky-400/[0.06]" },
+};
+
+export function ProjectCard({
+  project,
+  isScanning,
+  isDeleting,
+  isActive = false,
+  onScan,
+  onDelete,
+  onSelectActive,
+}: ProjectCardProps) {
+  const isGit = Boolean(project.github_url);
+  const src = isGit ? SOURCE.github : SOURCE.zip;
   const isBusy = isScanning || isDeleting;
-
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    cardRef.current.style.setProperty("--mouse-x", `${x}px`);
-    cardRef.current.style.setProperty("--mouse-y", `${y}px`);
-  };
+  const originText = isGit ? (project.github_url?.replace(/^https?:\/\//, "") ?? project.name) : "ZIP Archive Upload Source";
 
   return (
     <article
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      className={`group relative flex min-h-[290px] flex-col justify-between overflow-hidden rounded-xl p-6 shadow-xl transition-all duration-250 ease-out hover:-translate-y-1 ${
+      className={cn(
+        "group relative rounded-xl overflow-hidden flex flex-col reveal transition-all duration-300 hover:-translate-y-0.5",
         isActive
-          ? "border border-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.035)] shadow-[inset_4px_0_0_0_#ffffff]"
-          : "border border-[#242424] bg-[#080808] hover:border-[#3A3A3A] hover:bg-[#0D0D0D] hover:shadow-[0_12px_36px_rgba(0,0,0,0.5)]"
-      }`}
+          ? "border border-primary/30 bg-gradient-to-b from-[#0b1424] to-[#080b14] shadow-[0_0_40px_-18px_rgba(0,229,255,0.45)]"
+          : "border border-white/[0.07] bg-gradient-to-b from-[#0d1019]/80 to-[#090b12]/80 hover:border-white/[0.14]"
+      )}
     >
-      {/* Dynamic Cursor Light Spotlight */}
-      <div
-        className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background: `radial-gradient(260px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.05), transparent 75%)`,
-        }}
+      {/* Edge signal hairline */}
+      <span
+        className={cn(
+          "absolute inset-x-0 top-0 h-px",
+          isActive
+            ? "cg-hairline"
+            : "bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+        )}
       />
 
-      {/* Top-Left Ambient Highlight */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.05),transparent_45%)]" />
+      {isScanning && (
+        <span className="absolute inset-x-0 top-0 h-[2px] overflow-hidden">
+          <span className="absolute inset-y-0 w-1/3 bg-primary cg-scanline" />
+        </span>
+      )}
 
-      {/* Light Sweep Line */}
-      <div className="pointer-events-none absolute -left-full top-0 h-full w-1/2 bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.05)] to-transparent opacity-0 transition-all duration-700 ease-out group-hover:left-full group-hover:opacity-100" />
-
-      <div className="relative z-10">
-        {/* Header Badges */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-lg border border-[#252525] bg-[#0A0A0A] text-white transition-all group-hover:border-[#555555]">
-              {isGitHubProject ? <Github className="size-4 text-white" /> : <FileArchive className="size-4 text-white" />}
-            </span>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#A3A3A3] bg-[#121212] border border-[#252525] px-2.5 py-1 rounded">
-              {isGitHubProject ? "GitHub Repository" : "ZIP Archive"}
-            </span>
-          </div>
-
-          {/* Status Indicator */}
-          {isScanning ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-white bg-[#151515] border border-[#303030] px-2 py-0.5 rounded">
-              <span className="size-1.5 rounded-full bg-white animate-pulse" />
-              Scanning
-            </span>
-          ) : isActive ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-black bg-white px-2 py-0.5 rounded uppercase">
-              <span className="size-1.5 rounded-full bg-black animate-pulse" />
-              Active
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold text-[#A3A3A3]">
-              <span className="size-1.5 rounded-full bg-[#555555]" />
-              Ready
-            </span>
-          )}
+      {/* Identity */}
+      <div className="flex items-center justify-between px-5 pt-5">
+        <div className="flex items-center gap-2.5">
+          <span className={cn("w-8 h-8 rounded-lg border flex items-center justify-center", src.ring)}>
+            <src.icon className={cn("w-4 h-4", src.tone)} />
+          </span>
+          <span className={cn("font-mono text-[10px] tracking-[0.14em] uppercase", src.tone)}>
+            {src.label}
+          </span>
         </div>
 
-        {/* Project Title & Link */}
-        <div className="mt-5 min-w-0">
-          <h2 className="truncate font-sans text-lg font-bold text-white transition-transform group-hover:translate-x-0.5" title={project.name}>
-            {project.name}
-          </h2>
-          {project.github_url ? (
-            <a
-              href={project.github_url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1.5 inline-flex items-center gap-1.5 truncate font-mono text-xs text-[#A3A3A3] hover:text-white hover:underline transition-colors"
-              title={project.github_url}
-            >
-              <ExternalLink className="size-3 shrink-0 text-[#737373]" />
-              <span className="truncate">{project.github_url.replace(/^https?:\/\//, "")}</span>
-            </a>
-          ) : (
-            <p className="mt-1.5 font-mono text-xs text-[#737373]">ZIP Upload Archive Source</p>
-          )}
-        </div>
-
-        {/* Metadata Details */}
-        <dl className="mt-5 space-y-2 border-t border-[#202020] pt-4 font-mono text-xs">
-          <div className="flex items-center justify-between gap-4">
-            <dt className="flex items-center gap-1.5 text-[#737373]">
-              <GitBranch className="size-3 text-[#A3A3A3]" />
-              Default Branch
-            </dt>
-            <dd className="truncate text-white bg-[#101010] px-2 py-0.5 rounded border border-[#222222]">
-              {project.default_branch ?? "main"}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-[#737373]">Created Date</dt>
-            <dd className="text-[#A3A3A3]">{formatCreatedDate(project.created_at)}</dd>
-          </div>
-        </dl>
+        {isScanning ? (
+          <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-primary px-2 py-1 rounded border border-primary/30 bg-primary/10">
+            <Loader2 className="w-3 h-3 animate-spin text-primary" />
+            SCANNING
+          </span>
+        ) : isActive ? (
+          <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-primary px-2 py-1 rounded border border-primary/30 bg-primary/10">
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="absolute inset-0 rounded-full bg-primary cg-ring" />
+              <span className="relative w-1.5 h-1.5 rounded-full bg-primary" />
+            </span>
+            ACTIVE
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-emerald-300/90 px-2 py-1 rounded border border-emerald-400/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            READY
+          </span>
+        )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="relative z-10 mt-6 flex items-center gap-2 border-t border-[#202020] pt-4">
-        {/* Open Project Workspace */}
+      {/* Information */}
+      <div className="px-5 pt-5 pb-4">
+        <h3 className={cn("text-[22px] font-semibold tracking-[-0.02em] break-all", isActive ? "text-white" : "text-white/90")}>
+          {project.name}
+        </h3>
+        <p className="mt-1 font-mono text-[11.5px] text-muted-foreground truncate" title={originText}>
+          {originText}
+        </p>
+      </div>
+
+      {/* Metadata */}
+      <dl className="mx-5 grid grid-cols-2 border-y border-white/[0.06] py-3">
+        <div>
+          <dt className="cg-label !text-[9.5px] flex items-center gap-1.5">
+            <GitBranch className="w-3 h-3" />
+            Default Branch
+          </dt>
+          <dd className="mt-1 font-mono text-[12.5px] text-foreground">
+            {project.default_branch ?? "main"}
+          </dd>
+        </div>
+        <div className="pl-4 border-l border-white/[0.06]">
+          <dt className="cg-label !text-[9.5px] flex items-center gap-1.5">
+            <CalendarDays className="w-3 h-3" />
+            Created Date
+          </dt>
+          <dd className="mt-1 font-mono text-[12.5px] text-foreground">
+            {formatCreatedDate(project.created_at)}
+          </dd>
+        </div>
+      </dl>
+
+      {/* Actions */}
+      <div className="mt-auto p-3 flex items-center gap-1.5">
         <Link
           href={`/projects/${project.id}`}
-          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#252525] bg-[#0A0A0A] font-mono text-xs font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-[#555555] hover:bg-[#151515] hover:shadow-[0_4px_16px_rgba(255,255,255,0.06)]"
+          onClick={() => onSelectActive?.(project)}
+          className={cn(
+            "group/b flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium active:scale-[0.98] transition-all",
+            isActive
+              ? "bg-primary/10 border border-primary/30 text-primary hover:bg-primary/15"
+              : "border border-white/[0.09] text-white hover:border-primary/40 hover:text-primary"
+          )}
         >
-          <FolderOpen className="size-3.5 text-[#A3A3A3]" />
-          <span>Open</span>
+          <FolderOpen className="w-3.5 h-3.5 transition-transform group-hover/b:translate-x-0.5" />
+          Open
         </Link>
 
-        {/* Scan Action Button (Primary) */}
         <button
           type="button"
           onClick={() => onScan(project)}
           disabled={isBusy}
-          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-3 font-mono text-xs font-bold text-black shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#E5E5E5] hover:shadow-[0_4px_16px_rgba(255,255,255,0.15)] disabled:cursor-wait disabled:opacity-60"
+          className="flex-1 h-9 inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/[0.09] text-[13px] text-white hover:border-primary/40 hover:text-primary disabled:opacity-60 active:scale-[0.98] transition-all"
         >
-          {isScanning ? <LoaderCircle className="size-3.5 animate-spin text-black" /> : <Play className="size-3.5 text-black" />}
+          {isScanning ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+          ) : (
+            <ScanLine className="w-3.5 h-3.5" />
+          )}
           <span>{isScanning ? "Scanning" : "Scan"}</span>
         </button>
 
-        {/* Open Graph Action Button */}
         <Link
           href={`/graph?projectId=${project.id}`}
-          className="grid size-9 place-items-center rounded-lg border border-[#252525] bg-[#0A0A0A] text-[#A3A3A3] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#555555] hover:bg-[#151515] hover:text-white"
-          title="Open Graph Visualization"
+          onClick={() => onSelectActive?.(project)}
+          title="View relationships graph"
+          aria-label="View relationships graph"
+          className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-white/[0.09] text-muted-foreground hover:text-primary hover:border-primary/40 hover:shadow-[0_0_14px_-4px_rgba(0,229,255,0.5)] active:scale-[0.98] transition-all"
         >
-          <GitGraph className="size-3.5" />
+          <Network className="w-3.5 h-3.5" />
         </Link>
 
-        {/* Delete Project Action */}
         <button
           type="button"
           id={`delete-project-${project.id}`}
@@ -170,12 +187,13 @@ export function ProjectCard({ project, isScanning, isDeleting, isActive = false,
           disabled={isBusy}
           title={`Delete ${project.name}`}
           aria-label={`Delete ${project.name}`}
-          className="grid size-9 place-items-center rounded-lg border border-[#252525] bg-[#0A0A0A] text-[#737373] transition-all duration-200 hover:border-rose-900/50 hover:bg-rose-950/20 hover:text-rose-300 disabled:cursor-wait disabled:opacity-40"
+          className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-white/[0.09] text-muted-foreground hover:text-rose-300 hover:border-rose-400/40 hover:bg-rose-500/[0.06] active:scale-[0.98] transition-all disabled:opacity-40"
         >
-          {isDeleting ? <LoaderCircle className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+          {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
         </button>
       </div>
     </article>
   );
 }
+
 

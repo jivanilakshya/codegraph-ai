@@ -1,5 +1,6 @@
-import type { Project } from "@/types/project";
+"use client";
 
+import type { Project } from "@/types/project";
 import { ProjectCard } from "./ProjectCard";
 
 type ProjectGridProps = {
@@ -9,6 +10,7 @@ type ProjectGridProps = {
   deletingProjectId: number | null;
   onScan: (project: Project) => void;
   onDelete: (project: Project) => void;
+  onSelectActive?: (project: Project) => void;
 };
 
 export function ProjectGrid({
@@ -18,9 +20,10 @@ export function ProjectGrid({
   deletingProjectId,
   onScan,
   onDelete,
+  onSelectActive,
 }: ProjectGridProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+    <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {projects.map((project) => (
         <ProjectCard
           key={project.id}
@@ -30,9 +33,11 @@ export function ProjectGrid({
           isDeleting={deletingProjectId === project.id}
           onScan={onScan}
           onDelete={onDelete}
+          onSelectActive={onSelectActive}
         />
       ))}
     </section>
   );
 }
+
 

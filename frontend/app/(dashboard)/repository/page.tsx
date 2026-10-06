@@ -1,16 +1,19 @@
 "use client";
 
-import { FolderGit2, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, FolderGit2, RefreshCw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
-import { ProjectSelector } from "@/components/developer/ProjectSelector";
-import { RepositoryTree } from "@/components/workspace/RepositoryTree";
 import { CodeViewer } from "@/components/workspace/CodeViewer";
+import { RepositoryTree } from "@/components/workspace/RepositoryTree";
 import { useActiveProject } from "@/hooks/useActiveProject";
 import { parseSourceLocation, type HighlightRange } from "@/lib/navigation";
 import { getFileContent, getRepositoryWorkspace } from "@/services/workspace";
 import type { FileContent, RepositoryFile } from "@/types/workspace";
+
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(" ");
+}
 
 function RepositoryPageInner() {
   const searchParams = useSearchParams();
@@ -31,9 +34,23 @@ function RepositoryPageInner() {
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Keep track of the last processed source location to avoid re-triggering
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const processedLocationRef = useRef<string | null>(null);
+
+  const currentProject = projects.find((p) => p.id === activeProjectId);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const loadWorkspace = useCallback(async () => {
     if (!activeProjectId) return;
@@ -147,118 +164,172 @@ function RepositoryPageInner() {
   };
 
   return (
-    <div className="relative space-y-6 text-white selection:bg-white selection:text-black">
-      {/* Subtle Ambient Background Light Source */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_-10%,rgba(255,255,255,0.035),transparent)]"
-        aria-hidden="true"
-      />
+    <div className="relative max-w-[1440px] mx-auto px-4 md:px-8 lg:px-10 py-8 md:py-10 text-white selection:bg-[#00e5ff]/30 selection:text-white">
+      {/* Figma Ambient Atmospheric Background */}
+      <div aria-hidden className="fixed inset-0 pointer-events-none z-0 reveal-fade">
+        <div className="absolute inset-0 cg-ambient" />
+        <div className="absolute inset-0 cg-grid opacity-60" />
+        <div className="absolute inset-0 cg-noise" />
+      </div>
 
-      <style>{`
-        @keyframes repoEntrance {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .repo-stagger {
-          opacity: 0;
-          animation: repoEntrance 450ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .repo-stagger {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-          }
-        }
-      `}</style>
-
-      {/* Header & Project Selector (Stagger 0ms) */}
-      <div
-        className="repo-stagger relative z-10 flex flex-col gap-6 border-b border-[#202020] pb-6 md:flex-row md:items-end md:justify-between"
-        style={{ animationDelay: "0ms" }}
+      {/* HEADER SECTION (Stagger 80ms) */}
+      <section
+        className="relative z-30 flex flex-col md:flex-row md:items-end justify-between gap-6 reveal"
+        style={{ "--d": "80ms" } as React.CSSProperties}
       >
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3] bg-[#151515] border border-[#303030] px-2 py-0.5 rounded flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-white animate-pulse" />
-              Codebase Explorer
-            </span>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
+            <span className="cg-label">Codebase Explorer</span>
           </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            REPOSITORY
+          <h1 className="text-4xl md:text-[56px] leading-[1] font-bold tracking-[-0.035em] text-white">
+            Repository
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-[#A3A3A3]">
+          <p className="text-muted-foreground text-[15px] mt-3">
             Explore the files and structure of your active codebase.
           </p>
         </div>
 
-        <div className="w-full md:w-80">
-          <ProjectSelector
-            projects={projects}
-            selectedProjectId={activeProjectId}
-            onSelect={(id) => {
-              processedLocationRef.current = null;
-              selectProject(id);
-            }}
-          />
-        </div>
-      </div>
+        {/* ACTIVE PROJECT CONTEXT SELECTOR */}
+        <div className="relative" ref={dropdownRef}>
+          <div className="cg-label mb-2">Active Project Context</div>
+          <button
+            type="button"
+            onClick={() => setDropdownOpen((o) => !o)}
+            className={cn(
+              "flex items-center gap-3 justify-between w-full md:w-64 h-10 pl-3 pr-2.5 rounded-lg border bg-white/[0.02] transition-all text-[13px]",
+              dropdownOpen
+                ? "border-[#00e5ff]/40 shadow-[0_0_0_3px_rgba(0,229,255,0.06),0_0_24px_-6px_rgba(0,229,255,0.35)]"
+                : "border-white/[0.08] hover:border-white/20"
+            )}
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff] shrink-0" />
+              <span className="text-white font-medium truncate">
+                {currentProject ? currentProject.name : "Select project…"}
+              </span>
+              {currentProject && (
+                <span className="font-mono text-muted-foreground text-[11px]">#{currentProject.id}</span>
+              )}
+            </span>
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform duration-300",
+                dropdownOpen && "rotate-180 text-[#00e5ff]"
+              )}
+            />
+          </button>
 
-      {/* Repository Main Panel Content (Staggered) */}
+          {dropdownOpen && (
+            <div className="absolute top-full right-0 mt-2 w-full md:w-72 p-1.5 rounded-xl border border-cyan-300/15 bg-[#0a0d16]/90 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8),0_0_30px_-10px_rgba(0,229,255,0.25)] cg-pop z-50">
+              <div className="cg-label px-2.5 pt-1.5 pb-2 !text-[9.5px]">Switch project</div>
+              {projects.length === 0 ? (
+                <div className="px-3 py-2 font-mono text-xs text-muted-foreground italic">
+                  No projects available
+                </div>
+              ) : (
+                projects.map((p) => {
+                  const active = p.id === activeProjectId;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        processedLocationRef.current = null;
+                        selectProject(p.id);
+                        setDropdownOpen(false);
+                      }}
+                      className={cn(
+                        "relative w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left transition-colors",
+                        active ? "bg-[#00e5ff]/[0.07]" : "hover:bg-white/[0.04]"
+                      )}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-[#00e5ff]" />
+                      )}
+                      <span className="flex-1 min-w-0">
+                        <span
+                          className={cn(
+                            "block text-[13px] truncate",
+                            active ? "text-white font-medium" : "text-foreground/85"
+                          )}
+                        >
+                          {p.name}{" "}
+                          <span className="font-mono text-[11px] text-muted-foreground">(#{p.id})</span>
+                        </span>
+                        <span className="block font-mono text-[10.5px] text-muted-foreground">
+                          {(p as { source_type?: string }).source_type ?? (p.github_url ? "GitHub" : "ZIP Archive")}
+                        </span>
+                      </span>
+                      {active && <Check className="w-3.5 h-3.5 text-[#00e5ff]" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* REPOSITORY WORKSPACE CONTAINER */}
       {isLoadingProjects ? (
-        <div className="repo-stagger flex h-72 items-center justify-center rounded-xl border border-[#202020] bg-[#080808]" style={{ animationDelay: "80ms" }}>
-          <RefreshCw className="size-6 animate-spin text-white" />
-          <span className="ml-3 font-mono text-xs text-[#A3A3A3]">Loading project list...</span>
+        <div
+          className="relative mt-8 rounded-2xl border border-white/[0.07] bg-[#070910]/80 backdrop-blur-xl p-16 flex items-center justify-center text-center reveal"
+          style={{ "--d": "180ms" } as React.CSSProperties}
+        >
+          <RefreshCw className="w-6 h-6 animate-spin text-[#00e5ff]" />
+          <span className="ml-3 font-mono text-xs text-muted-foreground">Loading project list…</span>
         </div>
       ) : errorLoadingProjects ? (
-        <div className="repo-stagger rounded-xl border border-rose-900/50 bg-rose-950/20 p-6 text-xs font-mono text-rose-300" style={{ animationDelay: "80ms" }}>
+        <div
+          className="relative mt-8 rounded-2xl border border-rose-900/50 bg-rose-950/20 p-6 font-mono text-xs text-rose-300 reveal"
+          style={{ "--d": "180ms" } as React.CSSProperties}
+        >
           <p className="font-bold text-rose-200">Failed to load projects</p>
-          <p className="mt-1 text-[#A3A3A3]">{errorLoadingProjects}</p>
+          <p className="mt-1 text-muted-foreground">{errorLoadingProjects}</p>
         </div>
       ) : !activeProjectId ? (
-        <div className="repo-stagger flex flex-col items-center justify-center rounded-xl border border-[#242424] bg-[#080808] py-20 text-center" style={{ animationDelay: "80ms" }}>
-          <FolderGit2 className="size-12 text-[#737373]" />
+        <div
+          className="relative mt-8 rounded-2xl border border-white/[0.07] bg-[#070910]/80 backdrop-blur-xl py-20 px-6 text-center reveal"
+          style={{ "--d": "180ms" } as React.CSSProperties}
+        >
+          <div className="relative mx-auto w-14 h-14 rounded-2xl border border-white/10 bg-[#0a0d16] flex items-center justify-center">
+            <FolderGit2 className="w-6 h-6 text-muted-foreground" />
+          </div>
           <h2 className="mt-4 font-sans text-lg font-bold text-white">No Project Selected</h2>
-          <p className="mx-auto mt-1.5 max-w-sm font-mono text-xs text-[#A3A3A3]">
+          <p className="mx-auto mt-1.5 max-w-sm font-mono text-xs text-muted-foreground">
             Please choose an active project using the project context selector above to explore its repository.
           </p>
         </div>
       ) : (
-        <div
-          className="repo-stagger grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-0 rounded-xl border border-[#242424] bg-[#080808] overflow-hidden shadow-2xl transition-all duration-300 hover:border-[#383838]"
-          style={{ animationDelay: "120ms" }}
+        <section
+          className="relative mt-8 rounded-2xl border border-white/[0.07] overflow-hidden bg-[#070910]/80 backdrop-blur-xl shadow-[0_40px_100px_-40px_rgba(0,0,0,0.9)] reveal"
+          style={{ "--d": "180ms" } as React.CSSProperties}
         >
-          {/* File Tree Panel */}
-          <RepositoryTree
-            files={files}
-            selectedFileId={selectedFile?.id ?? null}
-            isLoading={isLoadingWorkspace}
-            onSelectFile={(file) => void handleSelectFile(file)}
-            onRefresh={handleRefresh}
-            className="border-b border-[#202020] lg:border-b-0 lg:border-r h-[720px] lg:h-[750px]"
-          />
+          <div className="absolute inset-x-0 top-0 h-px cg-hairline z-10" />
+          <div className="grid grid-cols-1 md:grid-cols-[230px_1fr] lg:grid-cols-[280px_1fr] md:h-[min(72vh,720px)] md:min-h-[520px]">
+            {/* File Tree Explorer Panel */}
+            <RepositoryTree
+              files={files}
+              selectedFileId={selectedFile?.id ?? null}
+              isLoading={isLoadingWorkspace}
+              onSelectFile={(file) => void handleSelectFile(file)}
+              onRefresh={handleRefresh}
+              projectName={currentProject?.name ?? ""}
+            />
 
-          {/* Code Viewer Panel */}
-          <div className="flex flex-col h-[720px] lg:h-[750px] overflow-hidden bg-[#050505]">
-            {workspaceError ? (
-              <CodeViewer file={null} isLoading={false} error={workspaceError} />
-            ) : (
-              <CodeViewer
-                file={fileContent}
-                isLoading={isLoadingFile}
-                error={fileError}
-                highlightRange={highlightRange}
-                onClearHighlight={handleClearHighlight}
-              />
-            )}
+            {/* Code Preview Panel */}
+            <CodeViewer
+              file={fileContent}
+              isLoading={isLoadingFile}
+              error={fileError || workspaceError}
+              highlightRange={highlightRange}
+              onClearHighlight={handleClearHighlight}
+              projectName={currentProject?.name ?? ""}
+              fileCount={files.length}
+            />
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
@@ -268,9 +339,9 @@ export default function RepositoryPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-72 items-center justify-center rounded-xl border border-[#202020] bg-[#080808]">
-          <RefreshCw className="size-6 animate-spin text-white" />
-          <span className="ml-3 font-mono text-xs text-[#A3A3A3]">Loading workspace...</span>
+        <div className="flex h-72 items-center justify-center rounded-xl border border-white/[0.07] bg-[#070910]/80">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#00e5ff]" />
+          <span className="ml-3 font-mono text-xs text-muted-foreground">Loading workspace…</span>
         </div>
       }
     >
@@ -278,4 +349,3 @@ export default function RepositoryPage() {
     </Suspense>
   );
 }
-
