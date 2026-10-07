@@ -1,282 +1,236 @@
-import { Crosshair, RefreshCw, Search, X } from "lucide-react";
+"use client";
 
+import {
+  Focus,
+  Maximize,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
+import React from "react";
+
+import { NODE_APPEARANCE } from "@/components/graph/CodeGraphNode";
+import { cn } from "@/lib/cn";
 import type { CodeGraphNode, GraphNodeType, GraphRelationshipType } from "@/types/graph";
 
 type GraphToolbarProps = {
   activeNodeTypes: Set<GraphNodeType>;
   activeRelationships: Set<GraphRelationshipType>;
   canFocus: boolean;
-  focusError: string | null;
   focusDepth: 1 | 2 | 3;
   isFocused: boolean;
   isFocusing: boolean;
   isRefreshing: boolean;
   onFocusDepthChange: (depth: 1 | 2 | 3) => void;
   onFocus: () => void;
-  onShowFullGraph: () => void;
+  onShowFullGraph?: () => void;
   onFitView: () => void;
   onRefresh: () => void;
   onSearchResultSelect?: (node: CodeGraphNode) => void;
-  onToggleNodeType: (type: GraphNodeType) => void;
-  onToggleRelationship: (type: GraphRelationshipType) => void;
   query: string;
   searchError: string | null;
   searchResults?: CodeGraphNode[];
   isSearching?: boolean;
   searchCount: number | null;
   onQueryChange: (query: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
 };
-
-const nodeTypes: { label: string; value: GraphNodeType; dotColor: string }[] = [
-  { value: "project", label: "Project", dotColor: "bg-fuchsia-400" },
-  { value: "module", label: "Modules", dotColor: "bg-sky-400" },
-  { value: "api_route", label: "Routes", dotColor: "bg-rose-400" },
-  { value: "file", label: "Files", dotColor: "bg-blue-400" },
-  { value: "class", label: "Classes", dotColor: "bg-violet-400" },
-  { value: "function", label: "Functions", dotColor: "bg-emerald-400" },
-  { value: "method", label: "Methods", dotColor: "bg-teal-400" },
-  { value: "variable", label: "Variables", dotColor: "bg-amber-400" },
-];
-
-const relationshipTypes: { label: string; value: GraphRelationshipType; color: string }[] = [
-  { value: "CONTAINS", label: "Contains", color: "#8b5cf6" },
-  { value: "HANDLES", label: "Handles", color: "#f43f5e" },
-  { value: "IMPORTS", label: "Imports", color: "#38bdf8" },
-  { value: "CALLS", label: "Calls", color: "#10b981" },
-  { value: "EXTENDS", label: "Extends", color: "#f97316" },
-  { value: "HAS_METHOD", label: "Has methods", color: "#eab308" },
-  { value: "DECLARES", label: "Declares", color: "#6366f1" },
-];
-
-function FilterChip({
-  active,
-  dotColor,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  dotColor?: string;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all duration-150 ${
-        active
-          ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.1)]"
-          : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-      }`}
-    >
-      {dotColor && (
-        <span
-          className={`size-1.5 rounded-full ${dotColor} ${active ? "opacity-100 ring-2 ring-cyan-400/40" : "opacity-40"}`}
-        />
-      )}
-      {label}
-    </button>
-  );
-}
-
-function ActionChip({
-  disabled,
-  icon: Icon,
-  label,
-  onClick,
-  spinning = false,
-}: {
-  disabled?: boolean;
-  icon: typeof RefreshCw;
-  label: string;
-  onClick: () => void;
-  spinning?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 px-2.5 text-[11px] font-medium text-slate-200 transition-all duration-150 hover:border-cyan-500/60 hover:bg-slate-800 hover:text-cyan-100 disabled:cursor-wait disabled:opacity-50"
-    >
-      <Icon className={`size-3.5 ${spinning ? "animate-spin text-cyan-400" : "text-slate-400"}`} />
-      {label}
-    </button>
-  );
-}
 
 export function GraphToolbar({
   activeNodeTypes,
   activeRelationships,
-  isRefreshing,
   canFocus,
-  focusError,
   focusDepth,
   isFocused,
   isFocusing,
-  onFocus,
+  isRefreshing,
   onFocusDepthChange,
-  onShowFullGraph,
-  isSearching = false,
+  onFocus,
   onFitView,
-  onQueryChange,
   onRefresh,
   onSearchResultSelect,
-  onToggleNodeType,
-  onToggleRelationship,
   query,
   searchError,
-  searchCount,
   searchResults = [],
+  isSearching = false,
+  searchCount,
+  onQueryChange,
+  onExpandAll,
+  onCollapseAll,
 }: GraphToolbarProps) {
   return (
-    <section
-      aria-label="Graph controls"
-      className="pointer-events-none absolute inset-x-3 top-3 z-20"
-    >
-      <div className="pointer-events-auto rounded-2xl border border-slate-800/80 bg-slate-950/90 p-2.5 shadow-2xl shadow-slate-950/60 backdrop-blur-md">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search box with autocomplete */}
-          <label className="relative min-w-[13rem] flex-1 sm:min-w-[15rem] sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-500" />
-            <input
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search nodes by name…"
-              className="h-8 w-full rounded-lg border border-slate-800 bg-slate-900/90 pl-8 pr-14 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-500/70 focus:ring-1 focus:ring-cyan-500/40"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => onQueryChange("")}
-                className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-100"
-                aria-label="Clear graph search"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-            {query && searchCount !== null ? (
-              <span
-                className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${
-                  searchCount ? "text-cyan-300" : "text-amber-300"
-                }`}
-              >
-                {searchCount}
-              </span>
-            ) : null}
-            {query && onSearchResultSelect ? (
-              <div className="absolute z-30 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 shadow-2xl shadow-slate-950/80 backdrop-blur-md">
-                {isSearching ? (
-                  <p className="px-3 py-2 text-xs text-slate-400">Searching workspace…</p>
-                ) : searchError ? (
-                  <p className="px-3 py-2 text-xs text-rose-300">{searchError}</p>
-                ) : searchResults.length ? (
-                  searchResults.map((node) => (
-                    <button
-                      key={node.id}
-                      type="button"
-                      onClick={() => onSearchResultSelect(node)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800/80"
-                    >
-                      <span className="truncate font-medium">{node.label}</span>
-                      <span className="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-400">
-                        {node.type}
+    <div className="relative z-20 min-h-12 px-3 py-2 border-b border-white/[0.06] bg-[#080a12]/90 flex flex-wrap items-center gap-2">
+      {/* Search Input with Autocomplete */}
+      <div className="relative flex-1 max-w-xs min-w-[180px]">
+        <label className="flex items-center gap-2 h-8 w-full px-2.5 rounded-md border border-white/[0.07] bg-black/20 focus-within:border-primary/40 transition-colors">
+          <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search graph nodes..."
+            className="w-full min-w-0 bg-transparent outline-none text-[11.5px] text-white placeholder:text-muted-foreground/60 font-mono"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => onQueryChange("")}
+              className="text-muted-foreground hover:text-white"
+              aria-label="Clear search"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          {query && searchCount !== null && (
+            <span className="font-mono text-[9.5px] text-primary shrink-0">
+              {searchCount}
+            </span>
+          )}
+        </label>
+
+        {/* Autocomplete Dropdown */}
+        {query && onSearchResultSelect && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-white/[0.12] bg-[#0a0d16]/95 p-1.5 shadow-2xl backdrop-blur-xl z-50 cg-pop">
+            {isSearching ? (
+              <p className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                Searching graph nodes…
+              </p>
+            ) : searchError ? (
+              <p className="px-3 py-2 font-mono text-[11px] text-rose-300">
+                {searchError}
+              </p>
+            ) : searchResults.length ? (
+              searchResults.map((node) => {
+                const meta = NODE_APPEARANCE[node.type] ?? NODE_APPEARANCE.function;
+                return (
+                  <button
+                    key={node.id}
+                    type="button"
+                    onClick={() => {
+                      onSearchResultSelect(node);
+                    }}
+                    className="flex w-full items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors hover:bg-white/[0.06] group"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ background: meta.color }}
+                      />
+                      <span className="truncate font-mono text-[11px] text-slate-200 group-hover:text-white">
+                        {node.label}
                       </span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-xs text-slate-500">No matching nodes.</p>
-                )}
-              </div>
-            ) : null}
-          </label>
-
-          <div className="hidden h-5 w-px bg-slate-800 sm:block" />
-
-          {/* Node type chips */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {nodeTypes.map((type) => (
-              <FilterChip
-                key={type.value}
-                active={activeNodeTypes.has(type.value)}
-                dotColor={type.dotColor}
-                label={type.label}
-                onClick={() => onToggleNodeType(type.value)}
-              />
-            ))}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-mono text-[8.5px] uppercase font-bold",
+                        meta.tone
+                      )}
+                    >
+                      {node.type}
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <p className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                No matching nodes found.
+              </p>
+            )}
           </div>
-
-          <div className="hidden h-5 w-px bg-slate-800 md:block" />
-
-          {/* Relationship type chips */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {relationshipTypes.map((type) => (
-              <FilterChip
-                key={type.value}
-                active={activeRelationships.has(type.value)}
-                label={type.label}
-                onClick={() => onToggleRelationship(type.value)}
-              />
-            ))}
-          </div>
-
-          <div className="hidden h-5 w-px bg-slate-800 xl:block" />
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <ActionChip icon={Crosshair} label="Fit View" onClick={onFitView} />
-
-            <label className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/80 px-2.5 text-[11px] font-medium text-slate-300">
-              <span className="text-slate-400">Depth</span>
-              <select
-                aria-label="Focus depth"
-                value={focusDepth}
-                onChange={(event) =>
-                  onFocusDepthChange(Number(event.target.value) as 1 | 2 | 3)
-                }
-                className="bg-transparent text-[11px] font-semibold text-cyan-300 outline-none cursor-pointer"
-              >
-                <option value={1} className="bg-slate-900 text-white">
-                  1
-                </option>
-                <option value={2} className="bg-slate-900 text-white">
-                  2
-                </option>
-                <option value={3} className="bg-slate-900 text-white">
-                  3
-                </option>
-              </select>
-            </label>
-
-            <ActionChip
-              disabled={!canFocus || isFocusing}
-              icon={Crosshair}
-              label="Focus"
-              onClick={onFocus}
-              spinning={isFocusing}
-            />
-
-            {isFocused ? (
-              <ActionChip
-                icon={RefreshCw}
-                label="Full Graph"
-                onClick={onShowFullGraph}
-              />
-            ) : null}
-
-            <ActionChip
-              icon={RefreshCw}
-              label="Refresh"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              spinning={isRefreshing}
-            />
-          </div>
-        </div>
-
-        {focusError ? <p className="mt-2 text-xs text-rose-300">{focusError}</p> : null}
+        )}
       </div>
-    </section>
+
+      {/* Summary count */}
+      <span className="hidden xl:inline font-mono text-[9.5px] text-muted-foreground px-2">
+        {activeNodeTypes.size} types · {activeRelationships.size} relationships
+      </span>
+
+      {/* Depth Segmented Control */}
+      <div className="flex items-center h-8 rounded-md border border-white/[0.08] bg-black/15 overflow-hidden">
+        <span className="px-2 cg-label !text-[8px] border-r border-white/[0.07]">
+          Depth
+        </span>
+        {([1, 2, 3] as const).map((level) => (
+          <button
+            key={level}
+            type="button"
+            onClick={() => onFocusDepthChange(level)}
+            title={
+              level === 1
+                ? "Depth 1: Architecture Overview (Project, Folders)"
+                : level === 2
+                ? "Depth 2: Progressive Exploration (+ Files)"
+                : "Depth 3: Progressive Exploration (+ Functions & Methods)"
+            }
+            className={cn(
+              "w-8 h-8 font-mono text-[10px] border-r last:border-r-0 border-white/[0.06] transition-colors",
+              focusDepth === level
+                ? "text-primary bg-primary/[0.09]"
+                : "text-muted-foreground hover:text-white"
+            )}
+          >
+            {level}
+          </button>
+        ))}
+      </div>
+
+      {/* Expand / Collapse All Controls */}
+      {onExpandAll && onCollapseAll && (
+        <div className="flex items-center h-8 rounded-md border border-white/[0.08] bg-black/15 overflow-hidden">
+          <button
+            type="button"
+            onClick={onExpandAll}
+            className="px-2.5 h-full font-mono text-[9.5px] text-muted-foreground hover:text-white hover:bg-white/[0.04] border-r border-white/[0.06] transition-colors"
+            title="Expand visible nodes at current depth"
+          >
+            Expand
+          </button>
+          <button
+            type="button"
+            onClick={onCollapseAll}
+            className="px-2.5 h-full font-mono text-[9.5px] text-muted-foreground hover:text-white hover:bg-white/[0.04] transition-colors"
+            title="Collapse all nodes to root"
+          >
+            Collapse
+          </button>
+        </div>
+      )}
+
+      {/* Tool Buttons */}
+      <button
+        type="button"
+        onClick={onFitView}
+        className="graph-tool"
+        title="Fit view to graph"
+      >
+        <Maximize className="w-3 h-3" />
+        Fit
+      </button>
+
+      <button
+        type="button"
+        onClick={onFocus}
+        disabled={!canFocus}
+        className={cn(
+          "graph-tool",
+          isFocused && "!text-primary !border-primary/30 !bg-primary/[0.07]"
+        )}
+        title={canFocus ? "Focus on selected node" : "Select a node to focus"}
+      >
+        <Focus className={cn("w-3 h-3", isFocusing && "animate-pulse")} />
+        {isFocused ? "Reset" : "Focus"}
+      </button>
+
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={isRefreshing}
+        className="graph-tool"
+        title="Refresh graph"
+      >
+        <RefreshCw className={cn("w-3 h-3", isRefreshing && "animate-spin text-primary")} />
+        Refresh
+      </button>
+    </div>
   );
 }

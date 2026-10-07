@@ -1,12 +1,9 @@
 "use client";
 
-import dagre from "dagre";
 import {
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
-  Position,
   ReactFlow,
   type Edge,
   type Node,
@@ -14,15 +11,23 @@ import {
   type ReactFlowInstance,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  Maximize,
+  Minus,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CodeGraphNode,
   FileModuleNode,
   type FlowCodeGraphNodeData,
 } from "@/components/graph/CodeGraphNode";
+import { computeHierarchicalLayout, NODE_HEIGHT, NODE_WIDTH } from "@/lib/graphLayout";
 import type { CodeGraphEdge, CodeGraphNode as CodeGraphNodeRecord } from "@/types/graph";
 
 type GraphCanvasProps = {
@@ -34,320 +39,147 @@ type GraphCanvasProps = {
   matchedNodeIds?: Set<string>;
   nodes?: CodeGraphNodeRecord[];
   onNodeSelect?: (nodeId: string) => void;
-};
-
-type ModuleLayout = {
-  childNodes: Node<FlowCodeGraphNodeData>[];
-  height: number;
-  width: number;
+  onPaneClick?: () => void;
+  depth?: number;
+  isLoading?: boolean;
+  connectedNodeIds?: Set<string>;
+  highlightedNodeIds?: Set<string> | null;
+  isFocused?: boolean;
+  expandedNodeIds?: Set<string>;
+  onToggleExpand?: (nodeId: string) => void;
 };
 
 const nodeTypes = { codeGraph: CodeGraphNode, fileModule: FileModuleNode };
 const emptyMatchedNodeIds = new Set<string>();
 
-const entityNodeWidth = 210;
-const entityNodeHeight = 76;
-const moduleMinWidth = 300;
-const moduleEmptyHeight = 100;
-const moduleHeaderHeight = 52;
-const modulePadding = 24;
-
-function createDagreGraph(rankdir: "LR" | "TB", options: Record<string, number>) {
-  const graph = new dagre.graphlib.Graph();
-  graph.setGraph({ rankdir, ...options });
-  graph.setDefaultEdgeLabel(() => ({}));
-  return graph;
-}
-
-function layoutStandaloneNodes(
-  inputNodes: CodeGraphNodeRecord[],
-  inputEdges: CodeGraphEdge[],
-  xOffset = 0,
-): Node<FlowCodeGraphNodeData>[] {
-  const graph = createDagreGraph("TB", {
-    nodesep: 80,
-    ranksep: 110,
-    marginx: 40,
-    marginy: 40,
-  });
-
-  const nodeIds = new Set(inputNodes.map((node) => node.id));
-  inputNodes
-    .slice()
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .forEach((node) =>
-      graph.setNode(node.id, { width: entityNodeWidth, height: entityNodeHeight }),
-    );
-
-  inputEdges
-    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
-    .forEach((edge) => graph.setEdge(edge.source, edge.target));
-
-  dagre.layout(graph);
-
-  return inputNodes.map((node, index) => {
-    const position = graph.node(node.id) as { x: number; y: number } | undefined;
-    return {
-      id: node.id,
-      type: "codeGraph",
-      position: {
-        x: xOffset + (position?.x ?? (index % 4) * 260) - entityNodeWidth / 2,
-        y: (position?.y ?? Math.floor(index / 4) * 150) - entityNodeHeight / 2,
-      },
-      style: { width: entityNodeWidth, height: entityNodeHeight },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-      data: {
-        label: node.label,
-        nodeType: node.type,
-        focused: false,
-        matched: false,
-        dimmed: false,
-      },
-    };
-  });
-}
-
-function layoutModuleChildren(
-  fileId: string,
-  entities: CodeGraphNodeRecord[],
-  edges: CodeGraphEdge[],
-): ModuleLayout {
-  if (!entities.length) {
-    return { childNodes: [], width: moduleMinWidth, height: moduleEmptyHeight };
-  }
-
-  const graph = createDagreGraph("TB", {
-    nodesep: 40,
-    ranksep: 60,
-    marginx: 12,
-    marginy: 12,
-  });
-
-  const entityIds = new Set(entities.map((entity) => entity.id));
-  entities.forEach((entity) =>
-    graph.setNode(entity.id, { width: entityNodeWidth, height: entityNodeHeight }),
-  );
-
-  edges
-    .filter(
-      (edge) =>
-        edge.type === "CALLS" &&
-        entityIds.has(edge.source) &&
-        entityIds.has(edge.target),
-    )
-    .forEach((edge) => graph.setEdge(edge.source, edge.target));
-
-  dagre.layout(graph);
-
-  const bounds = graph.graph() as { width?: number; height?: number };
-  const contentWidth = Math.max(entityNodeWidth, bounds.width ?? entityNodeWidth);
-  const contentHeight = Math.max(entityNodeHeight, bounds.height ?? entityNodeHeight);
-  const width = Math.max(moduleMinWidth, contentWidth + modulePadding * 2);
-  const height = moduleHeaderHeight + contentHeight + modulePadding * 2;
-
-  const childNodes = entities.map((entity, index) => {
-    const position = graph.node(entity.id) as { x: number; y: number } | undefined;
-    return {
-      id: entity.id,
-      type: "codeGraph",
-      parentId: fileId,
-      extent: "parent" as const,
-      position: {
-        x:
-          (position?.x ?? contentWidth / 2) -
-          entityNodeWidth / 2 +
-          (width - contentWidth) / 2,
-        y:
-          moduleHeaderHeight +
-          modulePadding +
-          (position?.y ?? index * (entityNodeHeight + 30) + entityNodeHeight / 2) -
-          entityNodeHeight / 2,
-      },
-      style: { width: entityNodeWidth, height: entityNodeHeight },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-      data: {
-        label: entity.label,
-        nodeType: entity.type,
-        focused: false,
-        matched: false,
-        dimmed: false,
-        withinModule: true,
-      },
-    };
-  });
-
-  return { childNodes, width, height };
-}
-
-function layoutFocusedGraph(
-  inputNodes: CodeGraphNodeRecord[] = [],
-  inputEdges: CodeGraphEdge[] = [],
-): Node<FlowCodeGraphNodeData>[] {
-  // If architectural nodes exist (project, module), use standalone layout
-  if (inputNodes.some((node) => node.type === "project" || node.type === "module")) {
-    return layoutStandaloneNodes(inputNodes, inputEdges);
-  }
-
-  const nodesById = new Map(inputNodes.map((node) => [node.id, node]));
-  const files = inputNodes.filter((node) => node.type === "file");
-  if (!files.length) return layoutStandaloneNodes(inputNodes, inputEdges);
-
-  const ownerByEntity = new Map<string, string>();
-  inputEdges.forEach((edge) => {
-    if (
-      edge.type === "DECLARES" &&
-      nodesById.get(edge.source)?.type === "file" &&
-      nodesById.get(edge.target)?.type !== "file"
-    ) {
-      ownerByEntity.set(edge.target, edge.source);
-    }
-  });
-
-  const entitiesByFile = new Map(files.map((file) => [file.id, [] as CodeGraphNodeRecord[]]));
-  inputNodes
-    .filter((node) => node.type !== "file")
-    .forEach((entity) => {
-      const ownerId = ownerByEntity.get(entity.id);
-      if (ownerId) entitiesByFile.get(ownerId)?.push(entity);
-    });
-
-  const modules = new Map<string, ModuleLayout>();
-  files.forEach((file) =>
-    modules.set(
-      file.id,
-      layoutModuleChildren(file.id, entitiesByFile.get(file.id) ?? [], inputEdges),
-    ),
-  );
-
-  const fileGraph = createDagreGraph("TB", {
-    nodesep: 90,
-    ranksep: 140,
-    marginx: 48,
-    marginy: 48,
-  });
-
-  files.forEach((file) => {
-    const moduleLayout = modules.get(file.id)!;
-    fileGraph.setNode(file.id, { width: moduleLayout.width, height: moduleLayout.height });
-  });
-
-  const laidOutFileEdges = new Set<string>();
-  const moduleEndpoint = (nodeId: string) =>
-    nodesById.get(nodeId)?.type === "file" ? nodeId : ownerByEntity.get(nodeId);
-
-  inputEdges.forEach((edge) => {
-    const source = moduleEndpoint(edge.source);
-    const target = moduleEndpoint(edge.target);
-    if (!source || !target || source === target) return;
-    const key = `${source}:${target}`;
-    if (!laidOutFileEdges.has(key)) {
-      laidOutFileEdges.add(key);
-      fileGraph.setEdge(source, target);
-    }
-  });
-
-  dagre.layout(fileGraph);
-
-  const moduleNodes: Node<FlowCodeGraphNodeData>[] = [];
-  const childNodes: Node<FlowCodeGraphNodeData>[] = [];
-
-  files.forEach((file, index) => {
-    const moduleLayout = modules.get(file.id)!;
-    const position = fileGraph.node(file.id) as { x: number; y: number } | undefined;
-    moduleNodes.push({
-      id: file.id,
-      type: "fileModule",
-      position: {
-        x:
-          (position?.x ?? index * (moduleLayout.width + 120)) -
-          moduleLayout.width / 2,
-        y: (position?.y ?? 0) - moduleLayout.height / 2,
-      },
-      style: { width: moduleLayout.width, height: moduleLayout.height },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-      data: {
-        label: file.label,
-        nodeType: "file",
-        focused: false,
-        matched: false,
-        dimmed: false,
-        entityCount: moduleLayout.childNodes.length,
-      },
-    });
-    childNodes.push(...moduleLayout.childNodes);
-  });
-
-  const groupedEntityIds = new Set(ownerByEntity.keys());
-  const ungroupedNodes = inputNodes.filter(
-    (node) => node.type !== "file" && !groupedEntityIds.has(node.id),
-  );
-  const groupBounds = fileGraph.graph() as { width?: number };
-  return [
-    ...moduleNodes,
-    ...childNodes,
-    ...layoutStandaloneNodes(ungroupedNodes, inputEdges, (groupBounds.width ?? 0) + 180),
-  ];
-}
-
 const relationshipColors: Record<string, string> = {
-  CALLS: "#10b981", // emerald
-  IMPORTS: "#38bdf8", // sky
-  DECLARES: "#6366f1", // indigo
-  EXTENDS: "#f97316", // orange
-  HAS_METHOD: "#eab308", // amber
-  HANDLES: "#f43f5e", // rose
-  CONTAINS: "#8b5cf6", // violet
+  CALLS: "#00e5ff",
+  IMPORTS: "#a78bfa",
+  DECLARES: "#6366f1",
+  EXTENDS: "#34d399",
+  HAS_METHOD: "#34d399",
+  HANDLES: "#fb7185",
+  CONTAINS: "#64748b",
 };
+
+function determineHandles(
+  edgeType: string,
+  sourceId: string,
+  targetId: string,
+  layoutMap?: Map<string, Node<FlowCodeGraphNodeData>>
+) {
+  const sourceNode = layoutMap?.get(sourceId);
+  const targetNode = layoutMap?.get(targetId);
+
+  if (sourceNode && targetNode) {
+    const sy = sourceNode.position.y;
+    const ty = targetNode.position.y;
+    const sx = sourceNode.position.x;
+    const tx = targetNode.position.x;
+
+    // Downward vertical hierarchy (source is above target)
+    if (sy < ty - 25) {
+      return { sourceHandle: "bottom", targetHandle: "top" };
+    }
+    // Upward vertical hierarchy (target is above source)
+    if (sy > ty + 25) {
+      return { sourceHandle: "top-source", targetHandle: "bottom-target" };
+    }
+    // Same vertical tier (e.g. cross-file imports)
+    if (sx < tx) {
+      return { sourceHandle: "right", targetHandle: "left" };
+    }
+    return { sourceHandle: "left-source", targetHandle: "right-target" };
+  }
+
+  if (edgeType === "IMPORTS") {
+    return { sourceHandle: "right", targetHandle: "left" };
+  }
+  return { sourceHandle: "bottom", targetHandle: "top" };
+}
 
 function flowEdges(
   edges: CodeGraphEdge[] = [],
   matchedNodeIds: Set<string> = emptyMatchedNodeIds,
   isSearching = false,
   focusedNodeId: string | null = null,
+  layoutMap?: Map<string, Node<FlowCodeGraphNodeData>>
 ): Edge[] {
-  const showLabels = edges.length <= 300;
+  // Only show default edge labels when graph is small (<= 25 edges)
+  const showLabels = edges.length <= 25;
 
   return edges.map((edge, index) => {
-    const connectedToFocus =
+    const isDirectlyConnected =
       focusedNodeId !== null &&
       (edge.source === focusedNodeId || edge.target === focusedNodeId);
-    const dimmedByFocus = focusedNodeId !== null && !connectedToFocus;
+
+    const isDimmed = focusedNodeId !== null && !isDirectlyConnected;
+
     const relatedToMatch =
       !isSearching || matchedNodeIds.has(edge.source) || matchedNodeIds.has(edge.target);
-    const visible = !dimmedByFocus && relatedToMatch;
 
-    const baseColor = relationshipColors[edge.type] ?? "#94a3b8";
+    const baseColor = relationshipColors[edge.type] ?? "#64748b";
+    const { sourceHandle, targetHandle } = determineHandles(
+      edge.type,
+      edge.source,
+      edge.target,
+      layoutMap
+    );
 
     return {
       id: edge.id || `${edge.source}-${edge.target}-${edge.type}-${index}`,
       source: edge.source,
       target: edge.target,
-      type: "smoothstep",
-      label: showLabels ? edge.type : undefined,
-      animated: edge.type === "CALLS" && connectedToFocus,
+      sourceHandle,
+      targetHandle,
+      type: "default", // Clean cubic Bezier curve matching Figma
+      label:
+        isDirectlyConnected || (focusedNodeId === null && showLabels && relatedToMatch)
+          ? edge.type === "HAS_METHOD"
+            ? "HAS METHOD"
+            : edge.type
+          : undefined,
+      animated: isDirectlyConnected,
+      zIndex: isDirectlyConnected ? 20 : isDimmed ? 1 : 5,
       labelStyle: {
-        fill: connectedToFocus ? "#ffffff" : baseColor,
-        fontSize: 10,
-        fontWeight: 700,
-        opacity: visible ? 1 : 0.2,
+        fill: isDirectlyConnected ? baseColor : "#8a96a8",
+        fontSize: 8.5,
+        fontFamily: "var(--font-geist-mono), 'JetBrains Mono', monospace",
+        fontWeight: 600,
+        opacity: isDimmed ? 0.12 : 1,
       },
       labelBgStyle: {
-        fill: "#080d16",
-        fillOpacity: visible ? 0.95 : 0.3,
-        rx: 4,
-        ry: 4,
+        fill: "#080b12",
+        fillOpacity: isDimmed ? 0.15 : 0.95,
+        rx: 3,
+        ry: 3,
       },
-      labelBgPadding: [6, 3],
+      labelBgPadding: [4, 2],
       style: {
-        stroke: connectedToFocus ? "#22d3ee" : visible ? baseColor : "#334155",
-        strokeWidth: connectedToFocus ? 2.5 : visible ? 1.5 : 1,
-        opacity: visible ? 0.85 : 0.15,
+        stroke: isDirectlyConnected ? baseColor : isDimmed ? "#334155" : baseColor,
+        strokeWidth: isDirectlyConnected ? 2.4 : isDimmed ? 0.8 : 1.2,
+        opacity: isDirectlyConnected ? 1 : isDimmed ? 0.12 : 0.65,
+        filter: isDirectlyConnected ? `drop-shadow(0 0 6px ${baseColor}99)` : undefined,
       },
     };
   });
+}
+
+function ViewportTracker({
+  onZoomChange,
+}: {
+  onZoomChange: (zoom: number) => void;
+}) {
+  const { getZoom } = useReactFlow();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      onZoomChange(getZoom());
+    }, 250);
+    return () => clearInterval(interval);
+  }, [getZoom, onZoomChange]);
+
+  return null;
 }
 
 export function GraphCanvas({
@@ -359,51 +191,77 @@ export function GraphCanvas({
   matchedNodeIds = emptyMatchedNodeIds,
   nodes: inputNodes = [],
   onNodeSelect,
+  onPaneClick,
+  depth = 1,
+  isLoading = false,
+  connectedNodeIds,
+  isFocused = false,
+  expandedNodeIds = new Set(),
+  onToggleExpand,
 }: GraphCanvasProps) {
   const instance = useRef<ReactFlowInstance<Node<FlowCodeGraphNodeData>, Edge> | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(0.85);
 
-  const layoutedNodes = useMemo(
-    () => layoutFocusedGraph(inputNodes, inputEdges),
-    [inputEdges, inputNodes],
+  const nodesById = useMemo(
+    () => new Map(inputNodes.map((node) => [node.id, node])),
+    [inputNodes]
   );
 
-  const connectedNodeIds = useMemo(
+  // Compute hierarchical layout with expansion and focus awareness
+  const layoutedNodes = useMemo(
     () =>
-      !focusNodeId
-        ? null
-        : new Set([
-            focusNodeId,
-            ...inputEdges.flatMap((edge) =>
-              edge.source === focusNodeId
-                ? [edge.target]
-                : edge.target === focusNodeId
-                  ? [edge.source]
-                  : [],
-            ),
-          ]),
-    [focusNodeId, inputEdges],
+      computeHierarchicalLayout(
+        inputNodes,
+        inputEdges,
+        nodesById,
+        focusNodeId,
+        isFocused,
+        expandedNodeIds,
+        onToggleExpand
+      ),
+    [expandedNodeIds, focusNodeId, inputEdges, inputNodes, isFocused, nodesById, onToggleExpand]
+  );
+
+  const layoutedNodesMap = useMemo(
+    () => new Map(layoutedNodes.map((n) => [n.id, n])),
+    [layoutedNodes]
   );
 
   const initialNodes = useMemo(
     () =>
-      layoutedNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          focused: node.id === focusNodeId,
-          matched: matchedNodeIds.has(node.id),
-          dimmed: connectedNodeIds !== null && !connectedNodeIds.has(node.id),
-        },
-      })),
-    [connectedNodeIds, focusNodeId, layoutedNodes, matchedNodeIds],
+      layoutedNodes.map((node) => {
+        const isNodeSelected = focusNodeId !== null && node.id === focusNodeId;
+        const isConnected = focusNodeId !== null && Boolean(connectedNodeIds?.has(node.id));
+        const isDimmed = focusNodeId !== null && !isNodeSelected && !isConnected;
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            focused: isNodeSelected,
+            selected: isNodeSelected,
+            connected: isConnected,
+            matched: matchedNodeIds.has(node.id),
+            dimmed: isDimmed,
+          },
+        };
+      }),
+    [connectedNodeIds, focusNodeId, layoutedNodes, matchedNodeIds]
   );
 
   const initialEdges = useMemo(
-    () => flowEdges(inputEdges, matchedNodeIds, isSearching, focusNodeId),
-    [focusNodeId, inputEdges, isSearching, matchedNodeIds],
+    () =>
+      flowEdges(
+        inputEdges,
+        matchedNodeIds,
+        isSearching,
+        focusNodeId,
+        layoutedNodesMap
+      ),
+    [focusNodeId, inputEdges, isSearching, layoutedNodesMap, matchedNodeIds]
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<FlowCodeGraphNodeData>>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   useEffect(() => {
@@ -414,11 +272,16 @@ export function GraphCanvas({
     setEdges([...initialEdges]);
   }, [graphKey, initialEdges, setEdges]);
 
-  // Handle fitView requests with readable bounds
+  // Handle fitView requests smoothly
   useEffect(() => {
     if (fitViewRequest) {
       requestAnimationFrame(() =>
-        instance.current?.fitView({ padding: 0.16, duration: 350, maxZoom: 1.1, minZoom: 0.45 }),
+        instance.current?.fitView({
+          padding: 0.22,
+          duration: 350,
+          maxZoom: 1.15,
+          minZoom: 0.45,
+        })
       );
     }
   }, [fitViewRequest]);
@@ -426,36 +289,38 @@ export function GraphCanvas({
   useEffect(() => {
     const onResize = () =>
       requestAnimationFrame(() =>
-        instance.current?.fitView({ padding: 0.16, duration: 200, maxZoom: 1.1, minZoom: 0.45 }),
+        instance.current?.fitView({
+          padding: 0.22,
+          duration: 200,
+          maxZoom: 1.15,
+          minZoom: 0.45,
+        })
       );
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Smoothly center on focused node with readable zoom
+  // Smoothly center on focused node when focusNodeId changes
   useEffect(() => {
     const focusedNode = focusNodeId ? nodes.find((node) => node.id === focusNodeId) : null;
-    if (focusedNode) {
-      const width =
-        typeof focusedNode.style?.width === "number"
-          ? focusedNode.style.width
-          : entityNodeWidth;
-      const height =
-        typeof focusedNode.style?.height === "number"
-          ? focusedNode.style.height
-          : entityNodeHeight;
-      instance.current?.setCenter(
-        focusedNode.position.x + width / 2,
-        focusedNode.position.y + height / 2,
-        { duration: 350, zoom: 1.05 },
+    if (focusedNode && instance.current) {
+      instance.current.setCenter(
+        focusedNode.position.x + NODE_WIDTH / 2,
+        focusedNode.position.y + NODE_HEIGHT / 2,
+        { duration: 350, zoom: 1.05 }
       );
     }
   }, [focusNodeId, nodes]);
 
   const onInit: OnInit<Node<FlowCodeGraphNodeData>, Edge> = (reactFlowInstance) => {
     instance.current = reactFlowInstance;
+    setZoomLevel(reactFlowInstance.getZoom());
     requestAnimationFrame(() =>
-      reactFlowInstance.fitView({ padding: 0.16, maxZoom: 1.05, minZoom: 0.5 }),
+      reactFlowInstance.fitView({
+        padding: 0.22,
+        maxZoom: 1.1,
+        minZoom: 0.5,
+      })
     );
   };
 
@@ -466,11 +331,20 @@ export function GraphCanvas({
     [onNodeSelect],
   );
 
-  return (
-    <div className="relative h-full w-full overflow-hidden bg-[#060a10]">
-      {/* Subtle ambient lighting behind graph */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(14,165,233,0.05),transparent)]" />
+  const handleZoomIn = () => {
+    instance.current?.zoomIn({ duration: 250 });
+  };
 
+  const handleZoomOut = () => {
+    instance.current?.zoomOut({ duration: 250 });
+  };
+
+  const handleFitView = () => {
+    instance.current?.fitView({ padding: 0.22, duration: 350 });
+  };
+
+  return (
+    <div className="relative h-full w-full overflow-hidden graph-canvas select-none">
       <ReactFlow
         key={graphKey}
         nodes={nodes}
@@ -480,6 +354,7 @@ export function GraphCanvas({
         onEdgesChange={onEdgesChange}
         onInit={onInit}
         onNodeClick={handleNodeClick}
+        onPaneClick={onPaneClick}
         fitView
         nodesDraggable
         panOnDrag
@@ -491,36 +366,85 @@ export function GraphCanvas({
         onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Lines} gap={24} size={1} color="#1e293b" />
-        <Controls
-          className="!bottom-4 !left-4 !top-auto !rounded-xl !border-slate-800 !bg-slate-950/90 !shadow-xl !backdrop-blur-md [&>button]:!border-slate-800 [&>button]:!bg-slate-900/80 [&>button]:!fill-slate-300 hover:[&>button]:!bg-slate-800 hover:[&>button]:!fill-cyan-300"
-          showInteractive={false}
+        <ViewportTracker onZoomChange={setZoomLevel} />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={24}
+          size={1}
+          color="rgba(125, 211, 252, 0.12)"
         />
+
+        {/* Custom Zoom Controls matching Figma design */}
+        <div className="absolute left-3 bottom-3 z-20 flex flex-col rounded-lg border border-white/[0.09] bg-[#090c14]/90 backdrop-blur-lg overflow-hidden shadow-xl">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="graph-zoom"
+            aria-label="Zoom in"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="graph-zoom border-t border-white/[0.07]"
+            aria-label="Zoom out"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleFitView}
+            className="graph-zoom border-t border-white/[0.07]"
+            aria-label="Fit graph"
+          >
+            <Maximize className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Bottom Zoom & Node summary label */}
+        <div className="absolute left-16 bottom-3 z-20 font-mono text-[9.5px] text-muted-foreground pointer-events-none hidden sm:block">
+          {Math.round(zoomLevel * 100)}% · depth {depth} · {inputNodes.length} nodes
+        </div>
+
+        {/* MiniMap matching Figma design */}
         <MiniMap
           pannable
           zoomable
           nodeColor={(node) => {
-            const type = (node.data as FlowCodeGraphNodeData).nodeType;
+            const type = (node.data as unknown as FlowCodeGraphNodeData)?.nodeType;
             return type === "project"
-              ? "#e879f9"
+              ? "#00e5ff"
               : type === "module"
-                ? "#38bdf8"
+                ? "#7dd3fc"
                 : type === "class"
                   ? "#a78bfa"
                   : type === "function"
-                    ? "#34d399"
+                    ? "#22d3ee"
                     : type === "method"
-                      ? "#2dd4bf"
+                      ? "#34d399"
                       : type === "variable"
                         ? "#fbbf24"
                         : type === "api_route"
                           ? "#fb7185"
-                          : "#38bdf8";
+                          : "#60a5fa";
           }}
-          maskColor="rgba(2, 6, 23, 0.82)"
-          className="!bottom-4 !right-4 !top-auto !h-28 !w-44 !rounded-xl !border !border-slate-800 !bg-slate-950/90 !shadow-xl !backdrop-blur-md"
+          maskColor="rgba(8, 11, 18, 0.85)"
+          className="!bottom-3 !right-3 !top-auto !h-20 !w-32 !rounded-lg !border !border-white/[0.09] !bg-[#080b12]/90 !shadow-xl !backdrop-blur-lg"
         />
       </ReactFlow>
+
+      {/* Loading overlay with spinner */}
+      {isLoading && (
+        <div className="absolute inset-0 z-30 bg-[#04060b]/70 backdrop-blur-[2px] flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="w-6 h-6 text-primary animate-spin mx-auto" />
+            <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+              rebuilding graph neighborhood…
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
