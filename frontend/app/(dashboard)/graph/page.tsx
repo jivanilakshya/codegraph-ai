@@ -480,7 +480,7 @@ function GraphPageInner() {
   // Loading state
   if (isLoadingProjects) {
     return (
-      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[#06070c]">
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center">
         <div className="text-center p-8 rounded-2xl border border-white/[0.08] bg-[#0a0d16]/80 backdrop-blur-xl">
           <RefreshCw className="w-7 h-7 text-primary animate-spin mx-auto" />
           <h2 className="mt-4 font-mono text-[14px] text-white font-medium">
@@ -497,7 +497,7 @@ function GraphPageInner() {
   // No projects available
   if (!projects.length) {
     return (
-      <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[#06070c] p-6">
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center p-6">
         <div className="text-center max-w-md p-8 rounded-2xl border border-white/[0.08] bg-[#0a0d16]/80 backdrop-blur-xl">
           <Network className="w-8 h-8 text-muted-foreground mx-auto" />
           <h2 className="mt-4 text-base font-semibold text-white">No Projects Available</h2>
@@ -875,7 +875,7 @@ export default function GraphPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[#06070c]">
+        <div className="flex h-full min-h-0 flex-1 items-center justify-center">
           <div className="text-center p-8 rounded-2xl border border-white/[0.08] bg-[#0a0d16]/80 backdrop-blur-xl">
             <RefreshCw className="w-7 h-7 text-primary animate-spin mx-auto" />
             <p className="mt-4 font-mono text-[12px] text-white">Loading graph workspace…</p>

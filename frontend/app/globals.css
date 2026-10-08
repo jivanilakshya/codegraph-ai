@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #090a0f;
+  --background: #03070d;
   --foreground: #e2e8f0;
   --surface-main: #050505;
   --surface-card: #0d0d0d;
@@ -22,7 +22,7 @@
 
 html {
   height: 100%;
-  background-color: #090a0f;
+  background-color: #03070d;
   color-scheme: dark;
   scroll-behavior: smooth;
 }
@@ -31,7 +31,7 @@ body {
   height: 100%;
   min-height: 100dvh;
   margin: 0;
-  background-color: #090a0f;
+  background-color: #03070d;
   color: var(--text-primary);
   font-family: var(--font-geist-sans), Inter, system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
@@ -2580,29 +2580,61 @@ body {
 }
 
 /* =========================================================
-   NEW CODEGRAPH AI DASHBOARD DESIGN (FIGMA TRUTH)
+   CODEGRAPH AI WORKSPACE BACKGROUND SYSTEM (FIGMA TRUTH)
    ========================================================= */
 
+/* Layer 1: Deep black/navy base */
+.cg-workspace-base {
+  background-color: #03070d;
+  background-image: linear-gradient(180deg, #050912 0%, #060b14 50%, #03070d 100%);
+}
+
+/* Layer 2: Subtle technical cyan/blue grid pattern */
+.cg-workspace-grid {
+  background-image:
+    linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 90% 75% at 50% 20%, #000 30%, transparent 95%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 75% at 50% 20%, #000 30%, transparent 95%);
+  opacity: 0.9;
+}
+
+/* Layer 3: Soft ambient radial illumination (cyan, blue, indigo/violet) */
+.cg-workspace-glow {
+  background:
+    radial-gradient(ellipse 65% 45% at 50% 12%, rgba(0, 229, 255, 0.075), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 85% 30%, rgba(99, 102, 241, 0.045), transparent 70%),
+    radial-gradient(ellipse 48% 40% at 18% 85%, rgba(14, 165, 233, 0.035), transparent 70%);
+}
+
+/* Layer 4: Edge depth vignette focusing attention on workspace content */
+.cg-workspace-vignette {
+  background: radial-gradient(ellipse 95% 90% at 50% 45%, transparent 55%, rgba(3, 7, 13, 0.72) 100%);
+}
+
+/* Layer 5: Micro-texture noise to eliminate CSS gradient banding */
+.cg-workspace-noise {
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Backward-compatible aliases */
 .cg-ambient {
   background:
-    radial-gradient(60% 45% at 58% 8%, rgba(0, 170, 255, 0.10), transparent 70%),
-    radial-gradient(35% 30% at 85% 35%, rgba(139, 92, 246, 0.06), transparent 70%),
-    radial-gradient(40% 35% at 20% 90%, rgba(0, 229, 255, 0.04), transparent 70%),
-    linear-gradient(180deg, #06070c 0%, #070912 50%, #05060a 100%);
+    radial-gradient(65% 45% at 50% 12%, rgba(0, 229, 255, 0.08), transparent 70%),
+    radial-gradient(45% 35% at 85% 30%, rgba(99, 102, 241, 0.05), transparent 70%),
+    radial-gradient(48% 40% at 18% 85%, rgba(14, 165, 233, 0.04), transparent 70%),
+    linear-gradient(180deg, #050912 0%, #060b14 50%, #03070d 100%);
 }
 
 .cg-grid {
   background-image:
-    linear-gradient(to right, rgba(148, 197, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 197, 255, 0.045) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(70% 60% at 55% 25%, #000 20%, transparent 80%);
-  -webkit-mask-image: radial-gradient(70% 60% at 55% 25%, #000 20%, transparent 80%);
-}
-
-.cg-noise {
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 90% 75% at 50% 20%, #000 30%, transparent 95%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 75% at 50% 20%, #000 30%, transparent 95%);
 }
 
 .reveal {

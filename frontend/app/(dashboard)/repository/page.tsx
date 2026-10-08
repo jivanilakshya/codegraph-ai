@@ -165,13 +165,6 @@ function RepositoryPageInner() {
 
   return (
     <div className="relative max-w-[1440px] mx-auto px-4 md:px-8 lg:px-10 py-8 md:py-10 text-white selection:bg-[#00e5ff]/30 selection:text-white">
-      {/* Figma Ambient Atmospheric Background */}
-      <div aria-hidden className="fixed inset-0 pointer-events-none z-0 reveal-fade">
-        <div className="absolute inset-0 cg-ambient" />
-        <div className="absolute inset-0 cg-grid opacity-60" />
-        <div className="absolute inset-0 cg-noise" />
-      </div>
-
       {/* HEADER SECTION (Stagger 80ms) */}
       <section
         className="relative z-30 flex flex-col md:flex-row md:items-end justify-between gap-6 reveal"

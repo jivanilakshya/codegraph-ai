@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { WorkspaceBackground } from "@/components/layout/WorkspaceBackground";
 import { cn } from "@/lib/cn";
 
 type DashboardLayoutProps = {
@@ -19,9 +20,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isSymbolsWorkspace = pathname === "/symbols" || pathname.startsWith("/symbols/");
   const isAstWorkspace = pathname === "/ast" || pathname.startsWith("/ast/");
   const isFullHeightWorkspace = isGraphWorkspace || isChatWorkspace || isRelationshipsWorkspace || isSymbolsWorkspace || isAstWorkspace;
-  const isDashboardRoute = pathname === "/dashboard";
-  const isProjectsRoute = pathname === "/projects" || pathname.startsWith("/projects/");
-  const isAmbientRoute = isDashboardRoute || isProjectsRoute;
   const shouldAutoCollapseSidebar = isFullHeightWorkspace;
 
   // Stored user preference for sidebar collapse state (default expanded: false)
@@ -66,14 +64,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen w-full text-foreground selection:bg-primary/25 selection:text-white">
-      {/* Ambient background layers — rendered at layout level so they are visible behind all dashboard & project content */}
-      {isAmbientRoute && (
-        <div aria-hidden className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-          <div className="absolute inset-0 cg-ambient" />
-          <div className="absolute inset-0 cg-grid" />
-          <div className="absolute inset-0 cg-noise" />
-        </div>
-      )}
+      {/* CodeGraph AI Workspace Background System — rendered behind all workspace pages */}
+      <WorkspaceBackground />
 
       <Navbar
         onOpenSidebar={() => setMobileOpen(true)}
@@ -105,15 +97,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <main
         className={cn(
-          "relative transition-all duration-300 pt-14 min-h-screen",
+          "relative transition-all duration-300 pt-14 min-h-screen z-[1]",
           collapsed ? "lg:ml-[60px]" : "lg:ml-60",
           isFullHeightWorkspace
             ? "flex min-h-0 flex-1 flex-col overflow-hidden h-[calc(100dvh-3.5rem)]"
-            : isAmbientRoute
-            ? "overflow-x-hidden"
-            : "bg-[#06070c] p-5 sm:p-8"
+            : "overflow-x-hidden p-5 sm:p-8"
         )}
-        style={isAmbientRoute ? { zIndex: 1 } : undefined}
       >
         {children}
       </main>

@@ -228,56 +228,58 @@ function DeadCodePageInner() {
   const projectCandidates = data?.items ?? [];
 
   return (
-    <div className="w-full max-w-none box-border min-w-0 overflow-x-hidden space-y-6 sm:space-y-8">
-      {/* ── Page Header: Fully Responsive to Viewport ── */}
-      <header className="w-full flex flex-col xl:flex-row xl:items-end justify-between gap-4 sm:gap-6 border-b border-white/[0.06] pb-5 sm:pb-6">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-2">
+    <div className="max-w-[1500px] mx-auto px-3 md:px-6 lg:px-8 py-4 md:py-6 text-foreground">
+      {/* ── 1. Page Header matching Figma Design ── */}
+      <section
+        className="relative z-30 flex flex-col lg:flex-row lg:items-end justify-between gap-6 reveal"
+        style={{ ["--d" as string]: "80ms" }}
+      >
+        <div>
+          <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,.65)]" />
-            <span className="cg-label !text-[10px]">CodeGraph AI / Code Quality</span>
+            <span className="cg-label">CodeGraph AI / Code Quality</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[42px] leading-tight font-bold tracking-[-0.035em] text-white">
+          <h1 className="text-4xl md:text-[54px] leading-none font-bold tracking-[-0.035em] text-white">
             Dead Code Detection
           </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm mt-2 max-w-2xl leading-relaxed">
+          <p className="text-muted-foreground text-[14px] md:text-[15px] mt-3 max-w-3xl">
             Identify potentially unreachable files, classes, functions, methods,
             and variables using knowledge-graph analysis.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-end gap-2.5 shrink-0">
-          {/* Active Project Context Selector */}
-          <div className="relative min-w-[200px] sm:w-60" ref={projectRef}>
-            <div className="cg-label mb-1.5 !text-[9.5px]">Active Project Context</div>
+        {/* ── Active Project Context & Refresh ── */}
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2.5">
+          <div className="relative" ref={projectRef}>
+            <div className="cg-label mb-2">Active Project Context</div>
             <button
               type="button"
               onClick={() => setProjectOpen((open) => !open)}
               className={cn(
-                "flex items-center gap-2.5 justify-between w-full h-9.5 px-3 rounded-lg border bg-white/[0.02] transition-all text-xs",
+                "flex items-center gap-3 justify-between w-full sm:w-64 h-10 pl-3 pr-2.5 rounded-lg border bg-white/[0.02] transition-all text-[13px]",
                 projectOpen
                   ? "border-primary/40 shadow-[0_0_0_3px_rgba(0,229,255,0.06),0_0_24px_-6px_rgba(0,229,255,0.35)]"
                   : "border-white/[0.08] hover:border-white/20"
               )}
             >
-              <span className="flex items-center gap-2 min-w-0 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff] shrink-0" />
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
                 <span className="text-white font-medium truncate">
                   {activeProject?.name ?? "Select Project"}
                 </span>
-                <span className="font-mono text-[11px] text-muted-foreground shrink-0">
+                <span className="font-mono text-[11px] text-muted-foreground">
                   #{activeProjectId ?? "—"}
                 </span>
               </span>
               <ChevronDown
                 className={cn(
-                  "w-3.5 h-3.5 text-muted-foreground transition-transform shrink-0",
+                  "w-4 h-4 text-muted-foreground transition-transform",
                   projectOpen && "rotate-180 text-primary"
                 )}
               />
             </button>
-
             {projectOpen && (
-              <div className="absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto p-1.5 rounded-xl border border-cyan-300/15 bg-[#0a0d16]/95 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] z-50 cg-pop">
+              <div className="absolute top-full right-0 mt-2 w-full sm:w-72 max-h-80 overflow-y-auto p-1.5 rounded-xl border border-cyan-300/15 bg-[#0a0d16]/95 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] z-50 cg-pop">
                 <div className="cg-label px-2.5 pt-1.5 pb-2 !text-[9.5px]">
                   Switch project
                 </div>
@@ -322,13 +324,11 @@ function DeadCodePageInner() {
               </div>
             )}
           </div>
-
-          {/* Refresh Action: Always Fully Visible */}
           <button
             type="button"
             onClick={() => void loadData()}
             disabled={isLoading || isLoadingProjects}
-            className="h-9.5 px-3.5 rounded-lg border border-white/[0.1] bg-white/[0.025] text-xs text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.045] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shrink-0"
+            className="h-10 px-3.5 rounded-lg border border-white/[0.1] bg-white/[0.025] text-[12px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.045] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
             <RefreshCw
               className={cn("w-3.5 h-3.5", isLoading && "animate-spin")}
@@ -336,35 +336,29 @@ function DeadCodePageInner() {
             <span>Refresh</span>
           </button>
         </div>
-      </header>
+      </section>
 
-      {/* ── Responsive Statistics Section: Desktop horizontal, Tablet wraps, Mobile stacks ── */}
-      <section className="w-full">
+      {/* ── 2. Dead Code Overview (Single Integrated Horizontal Strip) ── */}
+      <section className="mt-8 reveal" style={{ ["--d" as string]: "170ms" }}>
         {isLoading ? (
-          <div className="border-y border-white/[0.06] py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-pulse">
+          <div className="border-y border-white/[0.06] py-5 grid grid-cols-2 md:grid-cols-5 gap-4 animate-pulse">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-16 rounded-lg bg-white/[0.035]"
-              />
+              <div key={index} className="h-16 rounded-lg bg-white/[0.035]" />
             ))}
           </div>
         ) : (
-          <div className="w-full border-y border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.3fr_repeat(4,1fr)] divide-y sm:divide-y-0 sm:divide-x divide-white/[0.06]">
-            {/* Overview Hero Column */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-500/[0.045] to-transparent flex flex-col justify-between">
+          <div className="relative border-y border-white/[0.06] grid grid-cols-2 md:grid-cols-[1.45fr_repeat(4,1fr)]">
+            <div className="relative col-span-2 md:col-span-1 px-3 md:px-5 py-5 border-b md:border-b-0 md:border-r border-white/[0.06] bg-gradient-to-r from-rose-500/[0.045] to-transparent">
               <div className="cg-label !text-[9px]">Dead Code Overview</div>
-              <div className="mt-2 flex items-baseline gap-2.5">
-                <span className="text-3xl sm:text-4xl font-semibold tracking-[-0.04em] leading-none text-white tabular-nums">
+              <div className="mt-2 flex items-end gap-3">
+                <span className="text-5xl font-semibold tracking-[-0.045em] leading-none text-white tabular-nums">
                   {counts.total}
                 </span>
-                <span className="text-xs text-muted-foreground truncate">
+                <span className="pb-1 text-[12px] text-muted-foreground">
                   Potential dead items
                 </span>
               </div>
             </div>
-
-            {/* Metric Columns */}
             {[
               {
                 label: "Files",
@@ -390,16 +384,21 @@ function DeadCodePageInner() {
                 icon: Variable,
                 tone: "text-amber-200",
               },
-            ].map(({ label, value, icon: Icon, tone }) => (
+            ].map(({ label, value, icon: Icon, tone }, index) => (
               <div
                 key={label}
-                className="p-4 sm:p-5 flex flex-col justify-between min-w-0"
+                className={cn(
+                  "px-3 md:px-5 py-5",
+                  index % 2 === 1 && "border-l md:border-l-0",
+                  index > 0 && "md:border-l",
+                  "border-white/[0.06]"
+                )}
               >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Icon className={cn("w-3.5 h-3.5 shrink-0", tone)} />
-                  <span className="cg-label !text-[8.5px] truncate">{label}</span>
+                <div className="flex items-center gap-2">
+                  <Icon className={cn("w-3.5 h-3.5", tone)} />
+                  <span className="cg-label !text-[8.5px]">{label}</span>
                 </div>
-                <div className="mt-2 text-xl sm:text-2xl font-semibold text-white tabular-nums">
+                <div className="mt-2 text-2xl font-semibold text-white tabular-nums">
                   {value}
                 </div>
               </div>
@@ -408,20 +407,22 @@ function DeadCodePageInner() {
         )}
       </section>
 
-      {/* ── Search + Filters Bar: Fits available width, no horizontal overflow ── */}
-      <section className="w-full rounded-xl border border-white/[0.07] bg-[#080a12]/90 backdrop-blur-xl p-2.5 sm:p-3 sticky top-16 z-20">
+      {/* ── 3. Search + Filters Row (Frosted Glass Control Area) ── */}
+      <section
+        className="mt-6 sticky top-14 z-20 rounded-xl border border-white/[0.07] bg-[#080a12]/90 backdrop-blur-xl p-3 reveal"
+        style={{ ["--d" as string]: "260ms" }}
+      >
         {isLoading ? (
           <div className="h-10 rounded-lg bg-white/[0.035] animate-pulse" />
         ) : (
-          <div className="w-full flex flex-col md:flex-row items-stretch md:items-center gap-2.5 min-w-0">
-            {/* Search Input: Flexible width with min-w-0 */}
-            <label className="flex-1 min-w-0 flex items-center gap-2.5 h-9.5 px-3 rounded-lg border border-white/[0.08] bg-black/20 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(0,229,255,0.05)] transition-all">
-              <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <div className="flex flex-col lg:flex-row lg:items-center gap-2.5">
+            <label className="flex-1 flex items-center gap-2.5 h-10 px-3 rounded-lg border border-white/[0.08] bg-black/15 focus-within:border-primary/35 focus-within:shadow-[0_0_0_3px_rgba(0,229,255,0.05)] transition-all">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search candidates by name, path, or reason..."
-                className="w-full min-w-0 bg-transparent outline-none text-xs text-white placeholder:text-muted-foreground/60"
+                className="w-full min-w-0 bg-transparent outline-none text-[13px] text-white placeholder:text-muted-foreground/60"
               />
               {query && (
                 <button
@@ -435,35 +436,34 @@ function DeadCodePageInner() {
               )}
             </label>
 
-            {/* Filter Dropdowns: Wrap on mobile, stay inline on desktop */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
-              <label className="flex-1 sm:flex-none h-9.5 px-2.5 rounded-lg border border-white/[0.08] bg-black/20 flex items-center gap-2 min-w-[120px]">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+              <label className="h-10 px-3 rounded-lg border border-white/[0.08] bg-black/15 flex items-center gap-2">
                 <span className="cg-label !text-[8.5px] shrink-0">Type</span>
                 <select
                   value={typeFilter}
                   onChange={(event) => setTypeFilter(event.target.value)}
-                  className="bg-transparent outline-none font-mono text-[11px] text-foreground cursor-pointer w-full pr-1"
+                  className="bg-[#090c13] outline-none font-mono text-[10.5px] text-foreground cursor-pointer pr-1"
                 >
-                  <option value="all" className="bg-[#090c13] text-white">All Types</option>
-                  <option value="file" className="bg-[#090c13] text-white">File</option>
-                  <option value="function" className="bg-[#090c13] text-white">Function</option>
-                  <option value="method" className="bg-[#090c13] text-white">Method</option>
-                  <option value="class" className="bg-[#090c13] text-white">Class</option>
-                  <option value="variable" className="bg-[#090c13] text-white">Variable</option>
+                  <option value="all">All Types</option>
+                  <option value="file">File</option>
+                  <option value="function">Function</option>
+                  <option value="method">Method</option>
+                  <option value="class">Class</option>
+                  <option value="variable">Variable</option>
                 </select>
               </label>
 
-              <label className="flex-1 sm:flex-none h-9.5 px-2.5 rounded-lg border border-white/[0.08] bg-black/20 flex items-center gap-2 min-w-[130px]">
+              <label className="h-10 px-3 rounded-lg border border-white/[0.08] bg-black/15 flex items-center gap-2">
                 <span className="cg-label !text-[8.5px] shrink-0">Confidence</span>
                 <select
                   value={confidenceFilter}
                   onChange={(event) => setConfidenceFilter(event.target.value)}
-                  className="bg-transparent outline-none font-mono text-[11px] text-foreground cursor-pointer w-full pr-1"
+                  className="bg-[#090c13] outline-none font-mono text-[10.5px] text-foreground cursor-pointer pr-1"
                 >
-                  <option value="all" className="bg-[#090c13] text-white">All Confidence</option>
-                  <option value="high" className="bg-[#090c13] text-white">High</option>
-                  <option value="medium" className="bg-[#090c13] text-white">Medium</option>
-                  <option value="low" className="bg-[#090c13] text-white">Low</option>
+                  <option value="all">All Confidence</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
                 </select>
               </label>
             </div>
@@ -471,10 +471,10 @@ function DeadCodePageInner() {
         )}
       </section>
 
-      {/* ── Candidate Results List ── */}
-      <section className="w-full space-y-3 pb-8">
+      {/* ── 4. Analysis Status Row & Candidate List ── */}
+      <section className="mt-5 mb-8">
         {!isLoading && !error && projectCandidates.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 px-1">
             <span className="font-mono text-[11px] text-muted-foreground">
               Showing{" "}
               <strong className="text-white font-medium">
@@ -482,7 +482,7 @@ function DeadCodePageInner() {
               </strong>{" "}
               candidate{filteredItems.length === 1 ? "" : "s"}
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-muted-foreground">
+            <span className="flex items-center gap-2 font-mono text-[9.5px] text-muted-foreground">
               <ShieldAlert className="w-3.5 h-3.5 text-rose-300/75 shrink-0" />
               Conservative deterministic analysis
             </span>
@@ -491,34 +491,34 @@ function DeadCodePageInner() {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="space-y-2.5 w-full">
-            {Array.from({ length: 4 }).map((_, index) => (
+          <div className="space-y-2.5">
+            {Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="h-28 rounded-xl border border-white/[0.05] bg-white/[0.025] animate-pulse p-4"
+                className="h-32 rounded-xl border border-white/[0.05] bg-white/[0.025] animate-pulse p-4"
               >
                 <div className="w-1/3 h-4 rounded bg-white/[0.05]" />
-                <div className="mt-3 w-2/3 h-3 rounded bg-white/[0.035]" />
+                <div className="mt-4 w-2/3 h-3 rounded bg-white/[0.035]" />
               </div>
             ))}
           </div>
         ) : error ? (
           /* Error State */
-          <div className="min-h-64 rounded-2xl border border-rose-500/20 bg-rose-500/[0.03] flex items-center justify-center text-center p-6">
+          <div className="min-h-72 rounded-2xl border border-rose-500/20 bg-rose-500/[0.03] flex items-center justify-center text-center px-6 py-12">
             <div>
-              <span className="mx-auto w-12 h-12 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-rose-300" />
+              <span className="mx-auto w-14 h-14 rounded-2xl border border-rose-500/25 bg-rose-500/[0.06] flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-rose-300" />
               </span>
-              <h2 className="mt-4 text-base font-medium text-white">
+              <h2 className="mt-5 text-[17px] font-medium text-white">
                 Failed to analyze dead code
               </h2>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1.5 max-w-md text-[12.5px] leading-relaxed text-muted-foreground">
                 {error}
               </p>
               <button
                 type="button"
                 onClick={() => void loadData()}
-                className="mt-4 h-8.5 px-4 rounded-lg border border-rose-400/25 bg-rose-400/[0.08] text-rose-200 text-xs hover:bg-rose-400/[0.15] transition-colors"
+                className="mt-4 h-9 px-4 rounded-lg border border-rose-400/25 bg-rose-400/[0.08] text-rose-200 text-[12px] hover:bg-rose-400/[0.15] transition-colors"
               >
                 Retry Analysis
               </button>
@@ -526,22 +526,22 @@ function DeadCodePageInner() {
           </div>
         ) : !activeProjectId ? (
           /* No Active Project Selected */
-          <div className="min-h-64 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center p-6">
+          <div className="min-h-80 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center px-6 py-12">
             <div>
-              <span className="mx-auto w-12 h-12 rounded-xl border border-primary/20 bg-primary/[0.05] flex items-center justify-center">
-                <ShieldAlert className="w-5 h-5 text-primary" />
+              <span className="mx-auto w-14 h-14 rounded-2xl border border-primary/20 bg-primary/[0.05] flex items-center justify-center">
+                <ShieldAlert className="w-6 h-6 text-primary" />
               </span>
-              <h2 className="mt-4 text-base font-medium text-white">
+              <h2 className="mt-5 text-[17px] font-medium text-white">
                 No active project selected
               </h2>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1.5 max-w-md text-[12.5px] leading-relaxed text-muted-foreground">
                 Please select a project from the context selector above to begin
                 dead code analysis.
               </p>
               <button
                 type="button"
                 onClick={() => setProjectOpen(true)}
-                className="mt-4 h-8.5 px-4 rounded-lg border border-primary/25 bg-primary/[0.05] text-primary text-xs hover:bg-primary/[0.1] transition-colors"
+                className="mt-4 h-9 px-4 rounded-lg border border-primary/25 bg-primary/[0.05] text-primary text-[12px] hover:bg-primary/[0.1] transition-colors"
               >
                 Select Project
               </button>
@@ -549,15 +549,15 @@ function DeadCodePageInner() {
           </div>
         ) : projectCandidates.length === 0 ? (
           /* Empty State: No dead code found */
-          <div className="min-h-64 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center p-6">
+          <div className="min-h-80 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center px-6 py-12">
             <div>
-              <span className="mx-auto w-12 h-12 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.05] flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+              <span className="mx-auto w-14 h-14 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.05] flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-300" />
               </span>
-              <h2 className="mt-4 text-base font-medium text-white">
+              <h2 className="mt-5 text-[17px] font-medium text-white">
                 No potential dead code found
               </h2>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1.5 max-w-md text-[12.5px] leading-relaxed text-muted-foreground">
                 The current project does not contain any candidates based on
                 the available relationship analysis.
               </p>
@@ -565,27 +565,27 @@ function DeadCodePageInner() {
           </div>
         ) : filteredItems.length === 0 ? (
           /* Empty State: Filters returned 0 */
-          <div className="min-h-64 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center p-6">
+          <div className="min-h-72 rounded-2xl border border-white/[0.06] bg-white/[0.012] flex items-center justify-center text-center px-6 py-12">
             <div>
-              <Search className="w-6 h-6 mx-auto text-muted-foreground" />
-              <h2 className="mt-3 text-base font-medium text-white">
+              <Search className="w-7 h-7 mx-auto text-muted-foreground" />
+              <h2 className="mt-4 text-[16px] font-medium text-white">
                 No matching candidates
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Try adjusting your search query or filter options.
+              <p className="mt-1.5 text-[12px] text-muted-foreground">
+                Try adjusting your search or filters.
               </p>
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-3.5 h-8.5 px-4 rounded-lg border border-primary/25 bg-primary/[0.05] text-primary text-xs hover:bg-primary/[0.1] transition-colors"
+                className="mt-4 h-9 px-4 rounded-lg border border-primary/25 bg-primary/[0.05] text-primary text-[12px] hover:bg-primary/[0.1] transition-colors"
               >
                 Clear Filters
               </button>
             </div>
           </div>
         ) : (
-          /* Candidate Cards List: Fully constrained inside container */
-          <div className="space-y-2.5 w-full">
+          /* Candidate Rows List matching Figma Design */
+          <div className="space-y-2.5">
             {filteredItems.map((item: DeadCodeItem, index: number) => {
               const typeKey = item.entity_type.toLowerCase();
               const meta = TYPE_META[typeKey] || DEFAULT_TYPE_META;
@@ -599,38 +599,36 @@ function DeadCodePageInner() {
               return (
                 <article
                   key={item.id}
-                  onClick={() =>
-                    setSelectedId(selected ? null : item.id)
-                  }
+                  onClick={() => setSelectedId(selected ? null : item.id)}
                   className={cn(
-                    "group relative rounded-xl border p-3.5 sm:p-4 transition-all duration-200 cursor-pointer w-full min-w-0 box-border overflow-hidden",
+                    "group relative rounded-xl border px-4 py-4 md:px-5 transition-all duration-200 cursor-pointer reveal",
                     selected
                       ? "border-primary/35 bg-gradient-to-r from-primary/[0.065] to-transparent shadow-[0_0_24px_-15px_rgba(0,229,255,.65)]"
-                      : "border-white/[0.065] bg-gradient-to-r from-white/[0.022] to-white/[0.008] hover:border-primary/20 hover:bg-white/[0.032]"
+                      : "border-white/[0.065] bg-gradient-to-r from-white/[0.022] to-white/[0.008] hover:border-primary/20 hover:bg-white/[0.032] hover:shadow-[0_14px_35px_-28px_rgba(0,229,255,.5)]"
                   )}
                   style={{ ["--d" as string]: `${Math.min(index, 10) * 30}ms` }}
                 >
                   {selected && (
                     <span className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-primary shadow-[0_0_8px_#00e5ff]" />
                   )}
-                  <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-3.5 w-full min-w-0">
+                  <div className="flex flex-col md:flex-row md:items-start gap-3.5">
                     <span
                       className={cn(
-                        "w-9 h-9 sm:w-10 sm:h-10 rounded-lg border flex items-center justify-center shrink-0",
+                        "w-10 h-10 rounded-lg border flex items-center justify-center shrink-0",
                         meta.surface
                       )}
                     >
-                      <Icon className={cn("w-4 h-4 sm:w-[18px] sm:h-[18px]", meta.tone)} />
+                      <Icon className={cn("w-[18px] h-[18px]", meta.tone)} />
                     </span>
 
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-                        <h3 className="font-mono text-xs sm:text-sm font-medium text-white break-all">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-mono text-[14px] md:text-[15px] font-medium text-white break-all">
                           {item.name}
                         </h3>
                         <span
                           className={cn(
-                            "font-mono text-[8.5px] tracking-[0.12em] px-1.5 py-0.5 rounded border shrink-0",
+                            "font-mono text-[8.5px] tracking-[0.12em] px-2 py-0.5 rounded border shrink-0",
                             meta.surface,
                             meta.tone
                           )}
@@ -639,7 +637,7 @@ function DeadCodePageInner() {
                         </span>
                         <span
                           className={cn(
-                            "font-mono text-[8.5px] tracking-[0.1em] px-1.5 py-0.5 rounded border shrink-0",
+                            "font-mono text-[8.5px] tracking-[0.1em] px-2 py-0.5 rounded border shrink-0",
                             confStyle
                           )}
                         >
@@ -647,7 +645,7 @@ function DeadCodePageInner() {
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-muted-foreground min-w-0">
+                      <div className="mt-1.5 flex items-center gap-2 font-mono text-[10.5px] text-muted-foreground">
                         <span className="text-sky-200/80 break-all">{item.file_path}</span>
                         {lines && (
                           <>
@@ -657,13 +655,13 @@ function DeadCodePageInner() {
                         )}
                       </div>
 
-                      <p className="pt-1 text-xs leading-relaxed text-muted-foreground break-words max-w-3xl">
+                      <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground max-w-3xl">
                         {item.reason}
                       </p>
                     </div>
 
                     <div
-                      className="flex flex-wrap sm:flex-col lg:flex-row gap-1.5 shrink-0 pt-2 sm:pt-0"
+                      className="flex md:flex-col xl:flex-row gap-1.5 md:opacity-70 group-hover:opacity-100 transition-opacity shrink-0 pt-2 md:pt-0"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <Link
@@ -679,7 +677,7 @@ function DeadCodePageInner() {
                             `Opening ${item.file_path}${lines ? ` · ${lines}` : ""}`
                           )
                         }
-                        className="h-8 px-2.5 sm:px-3 rounded-md border border-white/[0.09] text-[11px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.04] transition-all flex items-center justify-center gap-1.5 shrink-0"
+                        className="h-8 px-3 rounded-md border border-white/[0.09] text-[11px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.04] transition-all flex items-center justify-center gap-1.5 shrink-0"
                       >
                         <Code2 className="w-3.5 h-3.5" />
                         <span>View File</span>
@@ -696,7 +694,7 @@ function DeadCodePageInner() {
                         onClick={() =>
                           showToast(`Exploring graph for ${item.name}`)
                         }
-                        className="h-8 px-2.5 sm:px-3 rounded-md border border-white/[0.09] text-[11px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.04] transition-all flex items-center justify-center gap-1.5 shrink-0"
+                        className="h-8 px-3 rounded-md border border-white/[0.09] text-[11px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.04] transition-all flex items-center justify-center gap-1.5 shrink-0"
                       >
                         <Network className="w-3.5 h-3.5" />
                         <span>Explore Graph</span>
@@ -710,11 +708,11 @@ function DeadCodePageInner() {
         )}
       </section>
 
-      {/* Floating Action Toast: Clamped to viewport width */}
+      {/* ── 5. Floating Action Toast ── */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3.5 py-2 rounded-full border border-primary/20 bg-[#0a0d16]/95 backdrop-blur-xl shadow-[0_0_30px_-10px_rgba(0,229,255,0.4)] font-mono text-xs text-foreground pointer-events-none max-w-[90vw] truncate cg-pop">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-primary/20 bg-[#0a0d16]/90 backdrop-blur-xl shadow-[0_0_30px_-10px_rgba(0,229,255,0.4)] font-mono text-[12px] text-foreground cg-pop pointer-events-none">
           <ArrowUpRight className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="truncate">{toast}</span>
+          <span>{toast}</span>
         </div>
       )}
     </div>
@@ -723,17 +721,17 @@ function DeadCodePageInner() {
 
 function DeadCodeSkeleton() {
   return (
-    <div className="w-full max-w-none box-border min-w-0 overflow-x-hidden space-y-6 sm:space-y-8 animate-pulse">
+    <div className="max-w-[1500px] mx-auto px-3 md:px-6 lg:px-8 py-4 md:py-6 space-y-8 animate-pulse">
       <div className="h-16 w-1/3 rounded-lg bg-white/[0.04]" />
-      <div className="border-y border-white/[0.06] py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="border-y border-white/[0.06] py-5 grid grid-cols-2 md:grid-cols-5 gap-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="h-16 rounded-lg bg-white/[0.035]" />
         ))}
       </div>
-      <div className="h-10 rounded-xl bg-white/[0.035]" />
+      <div className="h-12 rounded-xl bg-white/[0.035]" />
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-white/[0.025]" />
+          <div key={i} className="h-32 rounded-xl bg-white/[0.025]" />
         ))}
       </div>
     </div>
