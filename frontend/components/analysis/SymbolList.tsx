@@ -1,97 +1,244 @@
 "use client";
 
-import { Box, Braces, ChevronRight, Code2, FileOutput, Package, Variable } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import {
+  Box,
+  Braces,
+  ChevronRight,
+  FileOutput,
+  FunctionSquare,
+  GitBranch,
+  Search,
+  Variable,
+} from "lucide-react";
 import React from "react";
 
+import { cn } from "@/lib/cn";
 import type { FileSymbols, SymbolGroup } from "@/types/workspace";
 
 type SymbolListProps = {
   symbols: FileSymbols;
   selectedSymbolName?: string | null;
+  selectedSymbolGroup?: SymbolGroup | null;
   typeFilter?: string;
   onSelectSymbol?: (name: string, group: SymbolGroup) => void;
+  filePath?: string;
 };
 
-const groups: { key: SymbolGroup; label: string; icon: LucideIcon; description: string }[] = [
-  { key: "imports", label: "Imports", icon: Package, description: "Imported module or declaration" },
-  { key: "functions", label: "Functions", icon: Code2, description: "Callable function definition" },
-  { key: "classes", label: "Classes", icon: Box, description: "Class or struct definition" },
-  { key: "methods", label: "Methods", icon: Braces, description: "Class or object method" },
-  { key: "variables", label: "Variables", icon: Variable, description: "Variable or constant declaration" },
-  { key: "exports", label: "Exports", icon: FileOutput, description: "Exported symbol declaration" },
+export const SYMBOL_TYPE_META: Record<
+  SymbolGroup,
+  {
+    singular: string;
+    plural: string;
+    icon: React.ElementType;
+    tone: string;
+    border: string;
+    bg: string;
+    description: string;
+  }
+> = {
+  functions: {
+    singular: "Function",
+    plural: "Functions",
+    icon: FunctionSquare,
+    tone: "text-primary",
+    border: "border-primary/25",
+    bg: "bg-primary/[0.06]",
+    description: "Callable function definition",
+  },
+  classes: {
+    singular: "Class",
+    plural: "Classes",
+    icon: Box,
+    tone: "text-indigo-300",
+    border: "border-indigo-400/25",
+    bg: "bg-indigo-400/[0.06]",
+    description: "Class or struct definition",
+  },
+  methods: {
+    singular: "Method",
+    plural: "Methods",
+    icon: Braces,
+    tone: "text-sky-300",
+    border: "border-sky-400/25",
+    bg: "bg-sky-400/[0.06]",
+    description: "Class or object method",
+  },
+  variables: {
+    singular: "Variable",
+    plural: "Variables",
+    icon: Variable,
+    tone: "text-emerald-300",
+    border: "border-emerald-400/25",
+    bg: "bg-emerald-400/[0.06]",
+    description: "Variable or constant declaration",
+  },
+  imports: {
+    singular: "Import",
+    plural: "Imports",
+    icon: GitBranch,
+    tone: "text-violet-300",
+    border: "border-violet-400/25",
+    bg: "bg-violet-400/[0.06]",
+    description: "Imported module declaration",
+  },
+  exports: {
+    singular: "Export",
+    plural: "Exports",
+    icon: FileOutput,
+    tone: "text-amber-200",
+    border: "border-amber-400/25",
+    bg: "bg-amber-400/[0.06]",
+    description: "Exported symbol declaration",
+  },
+};
+
+const GROUP_ORDER: SymbolGroup[] = [
+  "functions",
+  "classes",
+  "methods",
+  "variables",
+  "imports",
+  "exports",
 ];
 
 export function SymbolList({
   symbols,
   selectedSymbolName,
+  selectedSymbolGroup,
   typeFilter = "all",
   onSelectSymbol,
 }: SymbolListProps) {
-  const filteredGroups = groups.filter(
-    (g) => typeFilter === "all" || typeFilter.toLowerCase() === g.key.toLowerCase()
-  );
+  const normalizedFilter = typeFilter.toLowerCase();
+
+  const groups = GROUP_ORDER.filter(
+    (key) => normalizedFilter === "all" || normalizedFilter === key
+  )
+    .map((key) => ({
+      key,
+      meta: SYMBOL_TYPE_META[key],
+      items: symbols[key] ?? [],
+    }))
+    .filter((g) => g.items.length > 0);
+
+  if (!groups.length) {
+    return (
+      <div className="h-full min-h-64 flex items-center justify-center text-center p-6 select-none">
+        <div>
+          <Search className="w-6 h-6 mx-auto text-muted-foreground" />
+          <p className="mt-3 text-[14px] font-medium text-white">No symbols match</p>
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+            Adjust your search or type filter.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-4 font-mono text-xs select-none">
-      {filteredGroups.map(({ key, label, icon: Icon, description }) => {
-        const values = symbols[key];
-        if (!values || !values.length) return null;
+    <div className="space-y-6 select-none">
+      {groups.map((group, groupIndex) => {
+        const { key, meta, items } = group;
+        const Icon = meta.icon;
 
         return (
-          <section key={key} className="space-y-2">
+          <section
+            key={key}
+            className="reveal"
+            style={{ ["--d" as string]: `${80 + groupIndex * 50}ms` }}
+          >
             {/* Section Header */}
-            <h3 className="flex items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#737373] px-1 py-1 border-b border-[#1A1A1A]">
-              <span className="flex items-center gap-2">
-                <Icon className="size-3.5 text-[#A3A3A3]" />
-                <span>{label}</span>
+            <div className="flex items-center gap-2.5 mb-2.5 px-0.5">
+              <span className="font-mono text-[9.5px] font-semibold text-primary/65">
+                {String(groupIndex + 1).padStart(2, "0")}
               </span>
-              <span className="text-[10px] text-[#555555]">({values.length})</span>
-            </h3>
+              <span className="cg-label !text-foreground/75 font-semibold">
+                {meta.plural}
+              </span>
+              <span className="flex-1 h-px bg-gradient-to-r from-white/[0.08] to-transparent" />
+              <span className="font-mono text-[10px] text-muted-foreground">
+                ({items.length})
+              </span>
+            </div>
 
-            {/* Horizontal Symbol Cards */}
-            <div className="space-y-2">
-              {values.map((value, index) => {
-                const isSelected = selectedSymbolName === value;
+            {/* Symbols Cards */}
+            <div className="space-y-1.5">
+              {items.map((name, itemIndex) => {
+                const isActive =
+                  selectedSymbolName === name &&
+                  (!selectedSymbolGroup || selectedSymbolGroup === key);
 
                 return (
-                  <div
-                    key={`${value}-${index}`}
-                    onClick={() => onSelectSymbol?.(value, key)}
-                    className={`
-                      group relative flex items-center justify-between gap-4 rounded-lg border p-3 cursor-pointer
-                      transition-all duration-180 ease-out
-                      ${
-                        isSelected
-                          ? "bg-[#151515] border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.06),inset_0_0_15px_rgba(255,255,255,0.025)] -translate-y-0.5"
-                          : "bg-[#080808] border-[#242424] text-[#E5E5E5] hover:bg-[#121212] hover:border-[#555555] hover:text-white hover:-translate-y-0.5 shadow-sm"
-                      }
-                    `}
-                    title={value}
+                  <button
+                    key={`${key}-${name}-${itemIndex}`}
+                    type="button"
+                    onClick={() => onSelectSymbol?.(name, key)}
+                    className={cn(
+                      "ast-row group relative w-full grid grid-cols-[36px_minmax(0,1fr)_auto_16px] items-center gap-3 rounded-lg border px-3 py-2.5 text-left overflow-hidden transition-all duration-180",
+                      isActive
+                        ? "border-primary/45 bg-gradient-to-r from-primary/[0.12] to-primary/[0.03] shadow-[0_0_24px_-10px_rgba(0,229,255,0.75)]"
+                        : "border-white/[0.065] bg-white/[0.018] hover:border-primary/25 hover:bg-white/[0.035]"
+                    )}
+                    style={{ animationDelay: `${groupIndex * 40 + itemIndex * 25}ms` }}
+                    title={name}
                   >
-                    {/* Left: Icon & Symbol Name + Description */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="grid size-8 shrink-0 place-items-center rounded-md border border-[#242424] bg-[#050505]">
-                        <Icon className="size-4 text-[#A3A3A3]" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[14px] font-semibold text-white truncate tracking-tight">
-                          {value}
-                        </div>
-                        <div className="text-[11px] text-[#737373] truncate font-sans">
-                          {description}
-                        </div>
-                      </div>
+                    {/* Active neon left bar */}
+                    <span
+                      className={cn(
+                        "absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-primary transition-opacity duration-200",
+                        isActive ? "opacity-100 shadow-[0_0_8px_#00e5ff]" : "opacity-0"
+                      )}
+                    />
+
+                    {/* Icon container */}
+                    <span
+                      className={cn(
+                        "w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 transition-colors",
+                        isActive
+                          ? "border-primary/30 bg-primary/[0.08]"
+                          : "border-white/[0.07] bg-black/20"
+                      )}
+                    >
+                      <Icon className={cn("w-4 h-4", meta.tone)} />
+                    </span>
+
+                    {/* Symbol name and description */}
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block font-mono text-[13.5px] md:text-[14px] font-medium truncate",
+                          isActive ? "text-white" : "text-foreground/90"
+                        )}
+                      >
+                        {name}
+                      </span>
+                      <span className="block mt-0.5 text-[11.5px] text-muted-foreground truncate font-sans">
+                        {meta.description}
+                      </span>
                     </div>
 
-                    {/* Right: Badge & Chevron */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="shrink-0 font-mono text-[9px] font-bold uppercase tracking-wider text-[#A3A3A3] bg-[#0D0D0D] px-2 py-1 rounded border border-[#242424]">
-                        {key.replace(/s$/, "")}
-                      </span>
-                      <ChevronRight className={`size-4 text-[#555555] group-hover:text-white transition-colors ${isSelected ? "text-white" : ""}`} />
-                    </div>
-                  </div>
+                    {/* Symbol type badge */}
+                    <span
+                      className={cn(
+                        "font-mono text-[9px] md:text-[9.5px] font-bold tracking-[0.12em] uppercase px-2 py-0.5 rounded border shrink-0",
+                        isActive
+                          ? "border-primary/30 bg-primary/[0.08] text-primary"
+                          : "border-white/[0.07] bg-white/[0.02]",
+                        meta.tone
+                      )}
+                    >
+                      {meta.singular}
+                    </span>
+
+                    {/* Chevron right */}
+                    <ChevronRight
+                      className={cn(
+                        "w-3.5 h-3.5 transition-transform shrink-0",
+                        isActive
+                          ? "text-primary translate-x-0.5"
+                          : "text-white/20 group-hover:text-primary group-hover:translate-x-0.5"
+                      )}
+                    />
+                  </button>
                 );
               })}
             </div>

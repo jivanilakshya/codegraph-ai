@@ -3,34 +3,42 @@
 import Link from "next/link";
 import {
   AlertCircle,
-  Bot,
+  Braces,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Code2,
   Copy,
   ExternalLink,
-  FileCode2,
-  GitGraph,
-  LoaderCircle,
+  GitBranch,
   Menu,
   MessageSquare,
   MoreVertical,
-  PanelLeft,
-  PanelLeftClose,
-  PanelLeftOpen,
+  Network,
+  Orbit,
   Pencil,
   Plus,
+  RotateCcw,
   Send,
   Sparkles,
   Trash2,
-  User,
+  Variable,
   X,
 } from "lucide-react";
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  FormEvent,
+  KeyboardEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { useActiveProject } from "@/hooks/useActiveProject";
+import { cn } from "@/lib/cn";
+import { buildSourceLocationUrl } from "@/lib/navigation";
 import {
   addChatMessage,
   createConversation,
@@ -41,7 +49,6 @@ import {
   updateConversationTitle,
 } from "@/services/conversations";
 import { askCodebaseQuestionStream } from "@/services/rag";
-import { buildSourceLocationUrl } from "@/lib/navigation";
 import type {
   ChatMessage,
   Conversation,
@@ -59,7 +66,7 @@ type ConversationMessage =
   | { id: string; role: "assistant"; response: GraphRAGGenerationResponse };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Markdown & Typography Renderer (Neutral Dark Charcoal Palette)
+// Inline Markdown & Code Renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderInline(text: string): React.ReactNode[] {
@@ -72,7 +79,7 @@ function renderInline(text: string): React.ReactNode[] {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[2] !== undefined)
       parts.push(
-        <strong key={key++} className="font-semibold text-zinc-100">
+        <strong key={key++} className="font-semibold text-white">
           {m[2]}
         </strong>
       );
@@ -86,7 +93,7 @@ function renderInline(text: string): React.ReactNode[] {
       parts.push(
         <code
           key={key++}
-          className="rounded bg-zinc-800 border border-zinc-700/60 px-1.5 py-0.5 font-mono text-[0.85em] text-cyan-300"
+          className="rounded bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 font-mono text-[0.88em] text-primary"
         >
           {m[4]}
         </code>
@@ -98,7 +105,7 @@ function renderInline(text: string): React.ReactNode[] {
           href={m[6]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-cyan-400 underline decoration-cyan-400/30 underline-offset-2 hover:text-cyan-300 hover:decoration-cyan-300 transition-colors"
+          className="text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary transition-colors"
         >
           {m[5]}
         </a>
@@ -117,35 +124,33 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
   return (
-    <div className="my-4 min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-[#141414] shadow-sm">
-      <div className="flex items-center justify-between border-b border-zinc-800/80 bg-[#1c1c1c] px-3.5 py-2">
-        <div className="flex items-center gap-2">
-          <Code2 className="size-3.5 text-cyan-400" />
-          <span className="font-mono text-xs font-semibold text-zinc-300">{lang || "code"}</span>
-        </div>
+    <div className="my-3.5 border border-white/[0.08] bg-[#05070b] overflow-hidden rounded-lg">
+      <div className="h-8 flex items-center justify-between px-3 border-b border-white/[0.06] bg-white/[0.02]">
+        <span className="font-mono text-[10px] text-amber-200 uppercase">
+          {lang || "code"}
+        </span>
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 font-mono text-[11px] text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="flex items-center gap-1.5 font-mono text-[9.5px] text-muted-foreground hover:text-primary transition-colors"
         >
           {copied ? (
             <>
-              <Check className="size-3 text-emerald-400" />
+              <Check className="w-3 h-3 text-emerald-400" />
               <span className="text-emerald-400">Copied</span>
             </>
           ) : (
             <>
-              <Copy className="size-3" />
+              <Copy className="w-3 h-3" />
               <span>Copy</span>
             </>
           )}
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-[13px] sm:text-[13.5px] leading-relaxed">
-        <code className="font-mono text-zinc-200 [overflow-wrap:normal] [word-break:normal]">
-          {code}
-        </code>
+      <pre className="overflow-x-auto p-3.5 font-mono text-[12px] leading-6 text-[#c9d4e3]">
+        <code>{code}</code>
       </pre>
     </div>
   );
@@ -167,11 +172,12 @@ function renderTextBlocks(text: string, baseKey: number): React.ReactNode[] {
     if (/^\d+\. /m.test(trimmed)) {
       const items = trimmed.split(/\n/).filter(Boolean);
       result.push(
-        <ol key={k++} className="my-3 list-decimal space-y-1.5 pl-6 text-[14.5px] sm:text-[15px] leading-relaxed text-zinc-200">
+        <ol
+          key={k++}
+          className="my-2.5 list-decimal space-y-1.5 pl-5 marker:text-primary/70 text-[13.5px] leading-relaxed text-zinc-200"
+        >
           {items.map((item, i) => (
-            <li key={i}>
-              {renderInline(item.replace(/^\d+\.\s*/, ""))}
-            </li>
+            <li key={i}>{renderInline(item.replace(/^\d+\.\s*/, ""))}</li>
           ))}
         </ol>
       );
@@ -182,11 +188,12 @@ function renderTextBlocks(text: string, baseKey: number): React.ReactNode[] {
     if (/^[-*•] /m.test(trimmed)) {
       const items = trimmed.split(/\n/).filter(Boolean);
       result.push(
-        <ul key={k++} className="my-3 list-disc space-y-1.5 pl-6 text-[14.5px] sm:text-[15px] leading-relaxed text-zinc-200">
+        <ul
+          key={k++}
+          className="my-2.5 list-disc space-y-1.5 pl-5 marker:text-primary/70 text-[13.5px] leading-relaxed text-zinc-200"
+        >
           {items.map((item, i) => (
-            <li key={i}>
-              {renderInline(item.replace(/^[-*•]\s*/, ""))}
-            </li>
+            <li key={i}>{renderInline(item.replace(/^[-*•]\s*/, ""))}</li>
           ))}
         </ul>
       );
@@ -199,10 +206,10 @@ function renderTextBlocks(text: string, baseKey: number): React.ReactNode[] {
       const content = trimmed.replace(/^#+\s*/, "");
       const cls =
         lvl === 1
-          ? "mt-6 mb-2.5 text-lg font-bold text-zinc-100 tracking-tight"
+          ? "mt-5 mb-2 text-base font-bold text-white tracking-tight"
           : lvl === 2
-            ? "mt-5 mb-2 text-base font-semibold text-zinc-100 tracking-tight pb-1 border-b border-zinc-800"
-            : "mt-4 mb-1.5 text-sm font-semibold text-zinc-200 uppercase tracking-wide";
+          ? "mt-4 mb-2 text-[15px] font-semibold text-white tracking-tight pb-1 border-b border-white/[0.06]"
+          : "mt-3.5 mb-1.5 text-xs font-semibold text-zinc-200 uppercase tracking-wide";
       result.push(
         <p key={k++} className={cls}>
           {renderInline(content)}
@@ -213,14 +220,17 @@ function renderTextBlocks(text: string, baseKey: number): React.ReactNode[] {
 
     // Horizontal rule
     if (/^---+$/.test(trimmed)) {
-      result.push(<hr key={k++} className="my-5 border-zinc-800" />);
+      result.push(<hr key={k++} className="my-4 border-white/[0.08]" />);
       continue;
     }
 
     // Regular paragraph
     const lines = trimmed.split("\n");
     result.push(
-      <p key={k++} className="my-2.5 text-[14.5px] sm:text-[15px] leading-[1.75] text-zinc-200 [overflow-wrap:anywhere]">
+      <p
+        key={k++}
+        className="my-2 text-[13.5px] leading-7 text-foreground/85 [overflow-wrap:anywhere]"
+      >
         {lines.map((line, li) => (
           <span key={li}>
             {renderInline(line)}
@@ -244,7 +254,9 @@ function MarkdownContent({ text }: { text: string }) {
     const before = text.slice(cursor, fm.index);
     if (before.trim()) blocks.push(...renderTextBlocks(before, bk));
     bk += 100;
-    blocks.push(<CodeBlock key={`cb-${bk}`} lang={fm[1] || "code"} code={fm[2].trimEnd()} />);
+    blocks.push(
+      <CodeBlock key={`cb-${bk}`} lang={fm[1] || "code"} code={fm[2].trimEnd()} />
+    );
     bk++;
     cursor = fm.index + fm[0].length;
   }
@@ -255,87 +267,141 @@ function MarkdownContent({ text }: { text: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Source Card (compact & neutral)
+// Source Card matching Figma Redesign
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sourceLabel(source: RAGChunkResult) {
-  return source.entity_name ?? source.name ?? source.entity_type ?? "Code source";
+function sourceLabel(source: RAGChunkResult): string {
+  return source.entity_name ?? source.name ?? source.entity_type ?? "Code Source";
 }
 
-function SourceCard({ source, projectId }: { source: RAGChunkResult; projectId: number }) {
+function SourceCard({
+  source,
+  projectId,
+}: {
+  source: RAGChunkResult;
+  projectId: number;
+}) {
+  const name = sourceLabel(source);
   const lines =
     source.start_line === null
       ? null
       : source.end_line === null || source.end_line === source.start_line
-        ? `Line ${source.start_line}`
-        : `Lines ${source.start_line}–${source.end_line}`;
+      ? `Line ${source.start_line}`
+      : `Lines ${source.start_line}–${source.end_line}`;
 
   return (
-    <article className="group flex min-w-0 flex-col justify-between gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 p-2.5 transition-all hover:border-zinc-700 hover:bg-zinc-900">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <FileCode2 className="size-3.5 shrink-0 text-cyan-400" aria-hidden="true" />
-          <span className="min-w-0 truncate font-mono text-xs font-semibold text-zinc-200">
-            {sourceLabel(source)}
+    <div className="group border border-white/[0.065] bg-white/[0.015] hover:border-primary/25 hover:bg-primary/[0.025] rounded-lg p-3 transition-all flex flex-col justify-between">
+      <div>
+        <div className="flex items-start gap-2.5">
+          <span className="w-7 h-7 rounded-md border border-white/[0.08] bg-black/20 flex items-center justify-center flex-shrink-0">
+            <Code2 className="w-3.5 h-3.5 text-primary/80" />
           </span>
-          {source.entity_type && (
-            <span className="ml-auto shrink-0 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-300">
-              {source.entity_type}
-            </span>
-          )}
+          <div className="min-w-0 flex-1">
+            <div
+              className="font-mono text-[11.5px] text-white truncate font-medium"
+              title={name}
+            >
+              {name}
+            </div>
+            {source.entity_type && (
+              <div className="mt-0.5 font-mono text-[8px] tracking-[0.1em] text-violet-300 uppercase">
+                {source.entity_type}
+              </div>
+            )}
+          </div>
         </div>
         {source.file_path && (
-          <p className="mt-1 truncate font-mono text-[11px] text-zinc-400" title={source.file_path}>
+          <div
+            className="mt-2 font-mono text-[9.5px] text-muted-foreground truncate"
+            title={source.file_path}
+          >
             {source.file_path}
-          </p>
+          </div>
+        )}
+        {lines && <div className="mt-0.5 font-mono text-[9px] text-white/30">{lines}</div>}
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-1 border-t border-white/[0.04]">
+        {source.file_path && (
+          <Link
+            href={buildSourceLocationUrl({
+              projectId,
+              filePath: source.file_path,
+              startLine: source.start_line,
+              endLine: source.end_line,
+            })}
+            className="h-6 px-2 rounded-md border border-white/[0.08] text-[10px] text-foreground hover:text-primary hover:border-primary/25 transition-colors flex items-center gap-1"
+          >
+            <ExternalLink className="w-2.5 h-2.5" />
+            <span>Open</span>
+          </Link>
+        )}
+        <Link
+          href={`/graph?projectId=${projectId}&search=${encodeURIComponent(name)}`}
+          className="h-6 px-2 rounded-md border border-white/[0.08] text-[10px] text-foreground hover:text-primary hover:border-primary/25 transition-colors flex items-center gap-1"
+        >
+          <Network className="w-2.5 h-2.5" />
+          <span>Graph</span>
+        </Link>
+        {source.file_path && (
+          <>
+            <Link
+              href={`/ast?projectId=${projectId}&file=${encodeURIComponent(
+                source.file_path
+              )}`}
+              className="h-6 px-2 rounded-md border border-white/[0.08] text-[10px] text-foreground hover:text-primary hover:border-primary/25 transition-colors flex items-center gap-1"
+            >
+              <Braces className="w-2.5 h-2.5" />
+              <span>AST</span>
+            </Link>
+            <Link
+              href={`/symbols?projectId=${projectId}&file=${encodeURIComponent(
+                source.file_path
+              )}`}
+              className="h-6 px-2 rounded-md border border-white/[0.08] text-[10px] text-foreground hover:text-primary hover:border-primary/25 transition-colors flex items-center gap-1"
+            >
+              <Variable className="w-2.5 h-2.5" />
+              <span>Symbols</span>
+            </Link>
+          </>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs">
-        {lines && <span className="font-mono text-[11px] text-emerald-400/90">{lines}</span>}
-        <Link
-          href={buildSourceLocationUrl({
-            projectId,
-            filePath: source.file_path,
-            startLine: source.start_line,
-            endLine: source.end_line,
-          })}
-          className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 hover:underline"
-        >
-          <ExternalLink className="size-3" />
-          Open
-        </Link>
-        <Link
-          href={`/graph?projectId=${projectId}`}
-          className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 hover:underline"
-        >
-          <GitGraph className="size-3" />
-          Graph
-        </Link>
-      </div>
-    </article>
+    </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Graph Context (collapsible & minimal)
+// Graph Context Dropdown
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GraphContext({ details, projectId }: { details: GraphContextDetail[]; projectId: number }) {
+function GraphContext({
+  details,
+  projectId,
+}: {
+  details: GraphContextDetail[];
+  projectId: number;
+}) {
   const [open, setOpen] = useState(false);
   if (details.length === 0) return null;
+
   return (
     <div className="mt-4 min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.02] px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-white"
       >
-        {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-        <GitGraph className="size-3.5 text-cyan-400" />
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5" />
+        )}
+        <Network className="w-3.5 h-3.5 text-primary" />
         <span>Graph Context ({details.length})</span>
       </button>
+
       {open && (
-        <div className="mt-2.5 space-y-3 rounded-xl border border-zinc-800 bg-[#171717] p-4">
+        <div className="mt-2.5 space-y-3 rounded-xl border border-white/[0.08] bg-[#05070b]/90 p-4">
           {details.map((detail, index) => {
             const groups = [
               ["Calls", detail.calls],
@@ -343,24 +409,31 @@ function GraphContext({ details, projectId }: { details: GraphContextDetail[]; p
               ["Imports", detail.imports],
               ["Imported by", detail.imported_by],
             ] as const;
+
             return (
               <div
                 key={`${detail.file_path}-${detail.entity_name ?? index}`}
-                className="border-l-2 border-cyan-400/40 pl-3"
+                className="border-l-2 border-primary/50 pl-3"
               >
-                <p className="font-mono text-xs font-medium text-zinc-200">
+                <p className="font-mono text-xs font-medium text-white">
                   {detail.entity_name ?? detail.file_path}
                 </p>
                 {detail.entity_name && (
-                  <p className="truncate font-mono text-[11px] text-zinc-500">{detail.file_path}</p>
+                  <p className="truncate font-mono text-[11px] text-muted-foreground">
+                    {detail.file_path}
+                  </p>
                 )}
                 <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
                   {groups
                     .filter(([, values]) => values.length > 0)
                     .map(([label, values]) => (
                       <div key={label} className="text-xs">
-                        <span className="font-medium text-zinc-400">{label}:</span>{" "}
-                        <span className="break-words font-mono text-zinc-300">{values.join(", ")}</span>
+                        <span className="font-medium text-muted-foreground">
+                          {label}:
+                        </span>{" "}
+                        <span className="break-words font-mono text-zinc-300">
+                          {values.join(", ")}
+                        </span>
                       </div>
                     ))}
                 </div>
@@ -369,10 +442,10 @@ function GraphContext({ details, projectId }: { details: GraphContextDetail[]; p
           })}
           <Link
             href={`/graph?projectId=${projectId}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
           >
-            <GitGraph className="size-3.5" />
-            Explore full project graph
+            <Network className="w-3.5 h-3.5" />
+            <span>Explore full project graph</span>
           </Link>
         </div>
       )}
@@ -381,7 +454,7 @@ function GraphContext({ details, projectId }: { details: GraphContextDetail[]; p
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Assistant Message — Document layout (Open on black background)
+// Assistant Message
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AssistantMessage({
@@ -392,44 +465,58 @@ function AssistantMessage({
   projectId: number;
 }) {
   return (
-    <article className="flex w-full min-w-0 shrink-0 gap-3.5 py-1">
-      {/* Bot Avatar */}
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-700/80 bg-zinc-800 text-cyan-400 shadow-sm">
-        <Bot className="size-3.5" />
-      </div>
+    <article className="flex gap-3 md:gap-4 reveal" style={{ ["--d" as string]: "0ms" }}>
+      {/* Bot Avatar matching Figma */}
+      <span className="relative w-8 h-8 mt-0.5 rounded-lg border border-primary/25 bg-primary/[0.07] flex items-center justify-center flex-shrink-0">
+        <Orbit className="w-4 h-4 text-primary" />
+        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-emerald-400 border-2 border-[#070910]" />
+      </span>
 
-      {/* Answer content */}
-      <div className="min-w-0 flex-1">
+      <div className="flex-1 min-w-0">
         {/* Header row */}
-        <div className="mb-2 flex items-center justify-between gap-3 border-b border-zinc-800/60 pb-1.5">
-          <span className="text-xs font-semibold text-zinc-200">CodeGraph AI</span>
+        <div className="flex flex-wrap items-center gap-2 mb-2.5">
+          <span className="text-[13px] font-semibold text-white">CodeGraph AI</span>
           {response.model && response.model !== "Searching…" && (
-            <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 font-mono text-[10px] text-zinc-400">
+            <span className="font-mono text-[8.5px] text-violet-300 px-1.5 py-0.5 rounded border border-violet-400/20 bg-violet-400/[0.04] uppercase">
               {response.model} · {response.total_chunks}{" "}
-              {response.total_chunks === 1 ? "chunk" : "chunks"}
+              {response.total_chunks === 1 ? "CHUNK" : "CHUNKS"}
             </span>
           )}
         </div>
 
         {/* Answer body */}
         {response.answer ? (
-          <div className="min-w-0 text-zinc-200">
+          <div className="text-[13.5px] leading-7 text-foreground/85">
             <MarkdownContent text={response.answer} />
           </div>
         ) : (
-          <div className="flex items-center gap-2.5 py-3 text-xs text-zinc-400">
-            <LoaderCircle className="size-3.5 animate-spin text-cyan-400" />
-            <span>Analyzing codebase and graph relationships…</span>
+          <div className="flex items-center gap-2 font-mono text-[10.5px] text-muted-foreground py-2">
+            <span>Analyzing codebase</span>
+            <span className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-1 h-1 rounded-full bg-primary cg-dot"
+                  style={{ animationDelay: `${i * 140}ms` }}
+                />
+              ))}
+            </span>
           </div>
         )}
 
-        {/* Sources */}
+        {/* Retrieved Sources Section */}
         {response.sources.length > 0 && (
-          <div className="mt-5 min-w-0 border-t border-zinc-800/80 pt-3.5">
-            <p className="mb-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Retrieved Sources ({response.sources.length})
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 pt-4 border-t border-white/[0.06]">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="cg-label !text-[9px] !text-foreground/75">
+                Retrieved Sources
+              </span>
+              <span className="font-mono text-[9px] text-primary px-1.5 py-0.5 border border-primary/20 bg-primary/[0.05] rounded">
+                {response.sources.length}
+              </span>
+              <span className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
               {response.sources.map((source, index) => (
                 <SourceCard
                   key={`${source.file_path ?? "source"}-${source.name ?? index}-${index}`}
@@ -441,7 +528,7 @@ function AssistantMessage({
           </div>
         )}
 
-        {/* Graph context */}
+        {/* Graph Context */}
         <GraphContext details={response.graph_context} projectId={projectId} />
       </div>
     </article>
@@ -449,29 +536,27 @@ function AssistantMessage({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// User Message — ChatGPT-style Compact Charcoal Bubble
+// User Message matching Figma Redesign
 // ─────────────────────────────────────────────────────────────────────────────
 
 function UserMessage({ question }: { question: string }) {
   return (
-    <article className="flex w-full min-w-0 shrink-0 justify-end gap-3 py-1">
-      <div className="max-w-[85%] sm:max-w-[75%] rounded-[20px] rounded-br-sm bg-[#2f2f2f] px-4 py-2.5 text-[14.5px] leading-relaxed text-zinc-100 shadow-sm">
-        <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-          {question}
-        </p>
+    <div className="flex justify-end reveal" style={{ ["--d" as string]: "0ms" }}>
+      <div className="max-w-[85%] sm:max-w-[78%] px-4 py-3 rounded-xl rounded-br-sm border border-white/[0.08] bg-white/[0.045] text-[13.5px] leading-6 text-white shadow-lg whitespace-pre-wrap break-words">
+        {question}
       </div>
-      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 shadow-sm border border-zinc-700/60">
-        <User className="size-3.5" />
-      </div>
-    </article>
+    </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mapper — unchanged logic
+// Mapper Helper
 // ─────────────────────────────────────────────────────────────────────────────
 
-function mapChatMessageToConversationMessage(m: ChatMessage, projectId: number): ConversationMessage {
+function mapChatMessageToConversationMessage(
+  m: ChatMessage,
+  projectId: number
+): ConversationMessage {
   if (m.role === "user") {
     return { id: `db-user-${m.id}`, role: "user", question: m.content };
   }
@@ -492,10 +577,10 @@ function mapChatMessageToConversationMessage(m: ChatMessage, projectId: number):
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Page Component
+// Main Chat Page Inner Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function ChatPage() {
+function ChatPageInner() {
   const {
     projects,
     activeProject,
@@ -504,6 +589,7 @@ export default function ChatPage() {
     errorLoadingProjects,
     selectProject,
   } = useActiveProject();
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
@@ -514,19 +600,24 @@ export default function ChatPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   // Sidebar collapse state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
-  // Chat renaming state
+  // Chat renaming & menu state
   const [editingConversationId, setEditingConversationId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [menuOpenConversationId, setMenuOpenConversationId] = useState<number | null>(null);
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Project selector dropdown popover
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectRef = useRef<HTMLDivElement>(null);
+
   const requestId = useRef(0);
   const activeProjectIdRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   activeProjectIdRef.current = activeProjectId;
@@ -535,27 +626,68 @@ export default function ChatPage() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("codegraph_chat_sidebar_collapsed");
-      if (saved === "true") setIsSidebarCollapsed(true);
+      if (saved === "true") setSidebarOpen(false);
     } catch {
-      // ignore localStorage errors
+      // ignore
     }
   }, []);
+
+  // Close project dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (projectRef.current && !projectRef.current.contains(event.target as Node)) {
+        setProjectDropdownOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  // New chat handler
+  const handleNewChat = useCallback(async () => {
+    if (!activeProjectId || isSubmitting) return;
+    try {
+      const newConv = await createConversation(activeProjectId, "New Chat");
+      setConversations((prev) => [newConv, ...prev]);
+      setActiveConversationId(newConv.id);
+      setIsMobileDrawerOpen(false);
+      setMessages([]);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not create new chat.");
+    }
+  }, [activeProjectId, isSubmitting]);
+
+  // Keyboard shortcut Ctrl+N for new chat
+  useEffect(() => {
+    const shortcut = (event: globalThis.KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        void handleNewChat();
+      }
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, [handleNewChat]);
 
   // Auto resize textarea height
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(
+        textareaRef.current.scrollHeight,
+        140
+      )}px`;
     }
   }, [question]);
 
   const toggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => {
+    setSidebarOpen((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("codegraph_chat_sidebar_collapsed", String(next));
+        localStorage.setItem("codegraph_chat_sidebar_collapsed", String(!next));
       } catch {
-        // ignore localStorage errors
+        // ignore
       }
       return next;
     });
@@ -598,7 +730,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Optimistic update
     setConversations((prev) =>
       prev.map((c) => (c.id === convId ? { ...c, title: trimmed } : c))
     );
@@ -624,7 +755,9 @@ export default function ChatPage() {
       try {
         const history = await getConversationMessages(conversationId, projId);
         if (activeProjectIdRef.current === projId) {
-          setMessages(history.map((m) => mapChatMessageToConversationMessage(m, projId)));
+          setMessages(
+            history.map((m) => mapChatMessageToConversationMessage(m, projId))
+          );
         }
       } catch (err: unknown) {
         if (activeProjectIdRef.current === projId) {
@@ -652,16 +785,14 @@ export default function ChatPage() {
           setActiveConversationId(list[0].id);
           await loadConversationMessages(list[0].id, projId);
         } else {
-          const newConv = await createConversation(projId, "New Chat");
-          if (activeProjectIdRef.current === projId) {
-            setConversations([newConv]);
-            setActiveConversationId(newConv.id);
-            setMessages([]);
-          }
+          setActiveConversationId(null);
+          setMessages([]);
         }
       } catch (err: unknown) {
         if (activeProjectIdRef.current === projId) {
-          setError(err instanceof Error ? err.message : "Could not load conversations.");
+          setError(
+            err instanceof Error ? err.message : "Could not load conversations."
+          );
         }
       } finally {
         if (activeProjectIdRef.current === projId) {
@@ -688,8 +819,11 @@ export default function ChatPage() {
   }, [activeProjectId, loadProjectConversations]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, isSubmitting]);
 
   const handleSelectConversation = async (convId: number) => {
     if (!activeProjectId || convId === activeConversationId || isSubmitting) return;
@@ -697,20 +831,6 @@ export default function ChatPage() {
     setIsMobileDrawerOpen(false);
     setError(null);
     await loadConversationMessages(convId, activeProjectId);
-  };
-
-  const handleNewChat = async () => {
-    if (!activeProjectId || isSubmitting) return;
-    try {
-      const newConv = await createConversation(activeProjectId, "New Chat");
-      setConversations((prev) => [newConv, ...prev]);
-      setActiveConversationId(newConv.id);
-      setIsMobileDrawerOpen(false);
-      setMessages([]);
-      setError(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not create new chat.");
-    }
   };
 
   const handleDeleteConversation = async (convId: number, e: React.MouseEvent) => {
@@ -727,9 +847,7 @@ export default function ChatPage() {
           setActiveConversationId(updatedList[0].id);
           await loadConversationMessages(updatedList[0].id, activeProjectId);
         } else {
-          const newConv = await createConversation(activeProjectId, "New Chat");
-          setConversations([newConv]);
-          setActiveConversationId(newConv.id);
+          setActiveConversationId(null);
           setMessages([]);
         }
       }
@@ -738,10 +856,13 @@ export default function ChatPage() {
     }
   };
 
-  const submitQuestion = async (event?: FormEvent) => {
+  const submitQuestion = async (
+    event?: FormEvent,
+    overrideQuestion?: string
+  ) => {
     event?.preventDefault();
-    const normalizedQuestion = question.trim();
-    if (!activeProjectId || !normalizedQuestion || isSubmitting) return;
+    const promptText = (overrideQuestion ?? question).trim();
+    if (!activeProjectId || !promptText || isSubmitting) return;
 
     let currentConvId = activeConversationId;
     if (!currentConvId) {
@@ -751,7 +872,11 @@ export default function ChatPage() {
         setActiveConversationId(created.id);
         setConversations((prev) => [created, ...prev]);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Could not initialize conversation.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not initialize conversation."
+        );
         return;
       }
     }
@@ -766,25 +891,25 @@ export default function ChatPage() {
     setIsSubmitting(true);
     setQuestion("");
 
-    // 1. Save user message to DB immediately
+    // 1. Save user message to database
     let userMsg: ChatMessage | null = null;
     try {
       userMsg = await addChatMessage(
         currentConvId,
-        { role: "user", content: normalizedQuestion },
+        { role: "user", content: promptText },
         activeProjectId
       );
     } catch (dbErr: unknown) {
       setError(dbErr instanceof Error ? dbErr.message : "Failed to save user message.");
       setIsSubmitting(false);
-      setQuestion(normalizedQuestion);
+      setQuestion(promptText);
       return;
     }
 
     const userMsgId = `db-user-${userMsg.id}`;
     const assistantMsgId = `assistant-temp-${currentRequestId}`;
 
-    // Auto-generate title on first user message if conversation has default title
+    // Auto-generate title on first message
     const currentConv = conversations.find((c) => c.id === currentConvId);
     const isDefaultTitle =
       !currentConv ||
@@ -793,17 +918,23 @@ export default function ChatPage() {
     const isFirstQuestion = messages.length === 0;
 
     if (isDefaultTitle && isFirstQuestion && currentConvId) {
-      const generatedTitle = generateChatTitle(normalizedQuestion);
+      const generatedTitle = generateChatTitle(promptText);
       setConversations((prev) =>
-        prev.map((c) => (c.id === currentConvId ? { ...c, title: generatedTitle } : c))
+        prev.map((c) =>
+          c.id === currentConvId ? { ...c, title: generatedTitle } : c
+        )
       );
       if (activeProjectId) {
-        void updateConversationTitle(currentConvId, generatedTitle, activeProjectId).catch(() => {});
+        void updateConversationTitle(
+          currentConvId,
+          generatedTitle,
+          activeProjectId
+        ).catch(() => {});
       }
     }
 
     const initialAssistantResponse: GraphRAGGenerationResponse = {
-      query: normalizedQuestion,
+      query: promptText,
       project_id: activeProjectId,
       answer: "",
       model: "Searching…",
@@ -815,7 +946,7 @@ export default function ChatPage() {
 
     setMessages((current) => [
       ...current,
-      { id: userMsgId, role: "user", question: normalizedQuestion },
+      { id: userMsgId, role: "user", question: promptText },
       { id: assistantMsgId, role: "assistant", response: initialAssistantResponse },
     ]);
 
@@ -827,10 +958,13 @@ export default function ChatPage() {
     try {
       await askCodebaseQuestionStream(
         activeProjectId,
-        normalizedQuestion,
+        promptText,
         {
           onMetadata: (metadata) => {
-            if (requestId.current !== currentRequestId || activeProjectIdRef.current !== activeProjectId)
+            if (
+              requestId.current !== currentRequestId ||
+              activeProjectIdRef.current !== activeProjectId
+            )
               return;
             capturedSources = metadata.sources ?? [];
             capturedGraphContext = metadata.graph_context ?? [];
@@ -853,7 +987,10 @@ export default function ChatPage() {
             );
           },
           onToken: (token) => {
-            if (requestId.current !== currentRequestId || activeProjectIdRef.current !== activeProjectId)
+            if (
+              requestId.current !== currentRequestId ||
+              activeProjectIdRef.current !== activeProjectId
+            )
               return;
             receivedTokens = true;
             accumulatedText += token;
@@ -873,7 +1010,10 @@ export default function ChatPage() {
             );
           },
           onComplete: () => {
-            if (requestId.current !== currentRequestId || activeProjectIdRef.current !== activeProjectId)
+            if (
+              requestId.current !== currentRequestId ||
+              activeProjectIdRef.current !== activeProjectId
+            )
               return;
             if (currentConvId && accumulatedText.trim()) {
               void addChatMessage(
@@ -895,10 +1035,15 @@ export default function ChatPage() {
             }
           },
           onError: (streamErr) => {
-            if (requestId.current !== currentRequestId || activeProjectIdRef.current !== activeProjectId)
+            if (
+              requestId.current !== currentRequestId ||
+              activeProjectIdRef.current !== activeProjectId
+            )
               return;
             if (!receivedTokens) {
-              setMessages((current) => current.filter((msg) => msg.id !== assistantMsgId));
+              setMessages((current) =>
+                current.filter((msg) => msg.id !== assistantMsgId)
+              );
             }
             setError(streamErr.message);
           },
@@ -906,11 +1051,17 @@ export default function ChatPage() {
         abortController.signal
       );
     } catch (requestError: unknown) {
-      if (requestId.current !== currentRequestId || activeProjectIdRef.current !== activeProjectId) return;
+      if (
+        requestId.current !== currentRequestId ||
+        activeProjectIdRef.current !== activeProjectId
+      )
+        return;
       if (abortController.signal.aborted) return;
 
       if (!receivedTokens) {
-        setMessages((current) => current.filter((msg) => msg.id !== assistantMsgId));
+        setMessages((current) =>
+          current.filter((msg) => msg.id !== assistantMsgId)
+        );
       }
       setError(
         requestError instanceof Error
@@ -932,194 +1083,185 @@ export default function ChatPage() {
   };
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Sidebar Content Helper (ChatGPT-style compact neutral layout)
+  // Sidebar Content Component
   // ───────────────────────────────────────────────────────────────────────────
 
   const renderSidebarContent = (isCollapsed: boolean) => {
-    if (isCollapsed) {
-      return (
-        <div className="flex h-full flex-col items-center justify-between py-2.5">
-          {/* Top section: Toggle button + New Chat */}
-          <div className="flex flex-col items-center gap-2.5 w-full">
-            {/* Sidebar Expand Button */}
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              title="Open sidebar"
-              className="flex size-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
-            >
-              <PanelLeftOpen className="size-4" />
-            </button>
-
-            {/* New Chat Icon Button */}
-            <button
-              type="button"
-              onClick={() => void handleNewChat()}
-              disabled={isSubmitting}
-              title="New chat"
-              className="flex size-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700 hover:text-white transition-all disabled:opacity-40"
-            >
-              <Plus className="size-4" />
-            </button>
-
-            <div className="h-px w-5 bg-zinc-800 my-0.5" />
-
-            {/* Conversation Icons List */}
-            <div className="flex flex-col items-center gap-1 overflow-y-auto max-h-[calc(100vh-220px)] w-full px-1">
-              {conversations.map((conv) => {
-                const isActive = conv.id === activeConversationId;
-                return (
-                  <button
-                    key={conv.id}
-                    type="button"
-                    onClick={() => void handleSelectConversation(conv.id)}
-                    title={conv.title}
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-all ${
-                      isActive
-                        ? "bg-zinc-800 text-white font-medium"
-                        : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-                    }`}
-                  >
-                    <MessageSquare className="size-3.5" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Bottom logo */}
-          <div
-            title="CodeGraph AI"
-            className="flex size-7 items-center justify-center rounded-md bg-zinc-800/80 border border-zinc-700/50 text-cyan-400 font-mono font-bold text-[10px]"
-          >
-            CG
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="flex h-full flex-col">
-        {/* Top Header: Branding + Toggle Button */}
-        <div className="flex items-center justify-between pb-2.5 px-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex size-6 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700/60 text-cyan-400 font-mono font-bold text-[11px]">
-              CG
-            </div>
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-200 truncate">
-              CodeGraph AI
-            </span>
-          </div>
+        {/* Header / Brand */}
+        <div className="h-14 flex items-center px-3 border-b border-white/[0.06] shrink-0">
+          <span className="w-8 h-8 rounded-lg border border-primary/25 bg-primary/[0.06] flex items-center justify-center flex-shrink-0">
+            <Orbit className="w-4 h-4 text-primary" />
+          </span>
+          <span
+            className={cn(
+              "ml-3 font-semibold text-[14px] text-white whitespace-nowrap",
+              isCollapsed ? "hidden" : "block"
+            )}
+          >
+            CodeGraph <span className="text-primary">AI</span>
+          </span>
           <button
             type="button"
             onClick={toggleSidebar}
-            title="Close sidebar"
-            className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
+            className={cn(
+              "w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/[0.05] transition-colors",
+              isCollapsed ? "ml-auto md:ml-0" : "ml-auto"
+            )}
+            aria-label="Toggle chat sidebar"
+            title={isCollapsed ? "Open sidebar" : "Collapse sidebar"}
           >
-            <PanelLeftClose className="size-4" />
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
           </button>
         </div>
 
         {/* New Chat Button */}
-        <button
-          type="button"
-          onClick={() => void handleNewChat()}
-          disabled={isSubmitting}
-          className="flex items-center justify-between gap-2 w-full rounded-lg bg-zinc-800/60 hover:bg-zinc-800 text-zinc-200 px-3 py-2 text-xs font-medium border border-zinc-800 transition-all hover:border-zinc-700 disabled:opacity-40"
+        <div className="p-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => void handleNewChat()}
+            disabled={isSubmitting}
+            className={cn(
+              "h-10 rounded-lg border border-primary/25 bg-primary/[0.07] text-primary hover:bg-primary/[0.11] hover:border-primary/40 transition-all flex items-center disabled:opacity-40",
+              isCollapsed ? "w-9 mx-auto justify-center" : "w-full px-3 gap-2.5"
+            )}
+            title="New Chat (Ctrl+N)"
+          >
+            <Plus className="w-4 h-4 flex-shrink-0" />
+            <span
+              className={cn(
+                "text-[12.5px] font-medium whitespace-nowrap",
+                isCollapsed ? "hidden" : "block"
+              )}
+            >
+              New Chat
+            </span>
+            <kbd
+              className={cn(
+                "ml-auto font-mono text-[8.5px] text-muted-foreground border border-white/[0.08] rounded px-1.5 py-0.5",
+                isCollapsed ? "hidden" : "hidden lg:block"
+              )}
+            >
+              Ctrl N
+            </kbd>
+          </button>
+        </div>
+
+        {/* Recent Chats Section Label */}
+        <div
+          className={cn(
+            "cg-label !text-[8.5px] px-4 pt-2.5 pb-2 shrink-0",
+            isCollapsed ? "hidden" : "block"
+          )}
         >
-          <div className="flex items-center gap-2">
-            <Plus className="size-4 text-cyan-400" />
-            <span>New chat</span>
-          </div>
-          <span className="font-mono text-[10px] text-zinc-500">Ctrl+N</span>
-        </button>
+          Recent Chats
+        </div>
 
-        {/* Conversation History List */}
-        <div className="mt-3 flex-1 min-h-0 flex flex-col">
-          <div className="px-2 pb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-            Recent chats
-          </div>
-
+        {/* Conversations List */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-1">
           {isLoadingConversations ? (
-            <div className="flex items-center gap-2 py-4 px-2 font-mono text-xs text-zinc-500">
-              <LoaderCircle className="size-3.5 animate-spin text-cyan-400" />
-              Loading history…
+            <div className="flex items-center gap-2 py-4 px-2 font-mono text-xs text-muted-foreground">
+              <Orbit className="w-3.5 h-3.5 animate-spin text-primary" />
+              {!isCollapsed && <span>Loading history…</span>}
             </div>
           ) : conversations.length === 0 ? (
-            <p className="py-4 px-2 text-xs text-zinc-500">No conversations yet.</p>
+            !isCollapsed && (
+              <div className="py-6 px-3 text-center">
+                <p className="text-xs text-muted-foreground">No recent chats</p>
+                <p className="mt-1 text-[11px] text-muted-foreground/60 leading-relaxed">
+                  Start a new conversation to analyze your codebase.
+                </p>
+              </div>
+            )
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-0.5">
-              {conversations.map((conv) => {
-                const isActive = conv.id === activeConversationId;
-                const isEditing = conv.id === editingConversationId;
-                const isMenuOpen = conv.id === menuOpenConversationId;
+            conversations.map((conv) => {
+              const isActive = conv.id === activeConversationId;
+              const isEditing = conv.id === editingConversationId;
+              const isMenuOpen = conv.id === menuOpenConversationId;
 
-                if (isEditing) {
-                  return (
-                    <div
-                      key={conv.id}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 rounded-lg border border-cyan-500/60 bg-zinc-800 px-2 py-1 text-xs shadow-md"
-                    >
-                      <input
-                        ref={editInputRef}
-                        type="text"
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void saveRename(conv.id);
-                          } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            cancelRename();
-                          }
-                        }}
-                        className="min-w-0 flex-1 rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-100 outline-none placeholder:text-zinc-500 focus:ring-1 focus:ring-cyan-400"
-                        placeholder="Chat title…"
-                        maxLength={255}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void saveRename(conv.id)}
-                        title="Save title (Enter)"
-                        className="shrink-0 rounded p-0.5 text-emerald-400 hover:bg-zinc-700 hover:text-emerald-300 transition-colors"
-                      >
-                        <Check className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelRename}
-                        title="Cancel (Esc)"
-                        className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  );
-                }
-
+              if (isEditing && !isCollapsed) {
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => void handleSelectConversation(conv.id)}
-                    className={`group relative flex cursor-pointer items-center justify-between gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-                      isActive
-                        ? "bg-[#212121] text-white font-medium"
-                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 rounded-lg border border-primary/40 bg-[#0a0d16] px-2 py-1 text-xs shadow-md"
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-2 pr-1">
-                      <MessageSquare className="size-3.5 shrink-0 text-zinc-500 group-hover:text-zinc-400" />
-                      <span
-                        className="truncate leading-snug text-zinc-200 group-hover:text-white text-xs"
-                        title={conv.title}
-                      >
-                        {conv.title}
-                      </span>
-                    </div>
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void saveRename(conv.id);
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          cancelRename();
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded bg-black/40 px-1.5 py-0.5 text-xs text-white outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-primary font-mono"
+                      placeholder="Chat title…"
+                      maxLength={255}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveRename(conv.id)}
+                      title="Save (Enter)"
+                      className="shrink-0 p-0.5 text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelRename}
+                      title="Cancel (Esc)"
+                      className="shrink-0 p-0.5 text-muted-foreground hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              }
 
-                    {/* Options Menu (visible on hover or when open) */}
+              return (
+                <div
+                  key={conv.id}
+                  onClick={() => void handleSelectConversation(conv.id)}
+                  title={isCollapsed ? conv.title : undefined}
+                  className={cn(
+                    "group relative h-9 rounded-md flex items-center text-left transition-colors cursor-pointer",
+                    isCollapsed ? "w-9 mx-auto justify-center" : "w-full px-2.5",
+                    isActive
+                      ? "bg-primary/[0.08] text-white"
+                      : "text-muted-foreground hover:text-white hover:bg-white/[0.025]"
+                  )}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary shadow-[0_0_7px_#00e5ff]" />
+                  )}
+                  <MessageSquare
+                    className={cn(
+                      "w-3.5 h-3.5 flex-shrink-0",
+                      isActive ? "text-primary" : "text-muted-foreground group-hover:text-white"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "ml-2.5 text-[12px] truncate flex-1 min-w-0 font-medium",
+                      isCollapsed ? "hidden" : "block"
+                    )}
+                  >
+                    {conv.title}
+                  </span>
+
+                  {/* Options Menu on hover */}
+                  {!isCollapsed && (
                     <div className="relative shrink-0 flex items-center">
                       <button
                         type="button"
@@ -1128,26 +1270,25 @@ export default function ChatPage() {
                           setMenuOpenConversationId(isMenuOpen ? null : conv.id);
                         }}
                         title="Chat options"
-                        className={`rounded p-1 text-zinc-400 transition-all hover:bg-zinc-700 hover:text-zinc-200 ${
-                          isMenuOpen
-                            ? "opacity-100 bg-zinc-700 text-zinc-200"
-                            : "opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        }`}
+                        className={cn(
+                          "rounded p-1 text-muted-foreground hover:bg-white/[0.08] hover:text-white transition-all",
+                          isMenuOpen ? "opacity-100 bg-white/[0.08] text-white" : "opacity-0 group-hover:opacity-100"
+                        )}
                       >
-                        <MoreVertical className="size-3" />
+                        <MoreVertical className="w-3 h-3" />
                       </button>
 
                       {isMenuOpen && (
                         <div
-                          className="absolute right-0 top-full z-40 mt-1 w-28 rounded-lg border border-zinc-700 bg-zinc-900 p-1 shadow-xl backdrop-blur-md"
+                          className="absolute right-0 top-full z-40 mt-1 w-28 rounded-lg border border-white/[0.1] bg-[#0c101c] p-1 shadow-2xl backdrop-blur-md cg-pop"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
                             onClick={(e) => startRenaming(conv, e)}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-cyan-300 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-zinc-300 hover:bg-white/[0.05] hover:text-primary transition-colors"
                           >
-                            <Pencil className="size-3 text-cyan-400" />
+                            <Pencil className="w-3 h-3 text-primary" />
                             <span>Rename</span>
                           </button>
                           <button
@@ -1158,184 +1299,264 @@ export default function ChatPage() {
                             }}
                             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors"
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 className="w-3 h-3" />
                             <span>Delete</span>
                           </button>
                         </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              );
+            })
           )}
+        </div>
+
+        {/* Bottom Index Status matching Figma */}
+        <div
+          className={cn(
+            "p-3 border-t border-white/[0.05] shrink-0",
+            isCollapsed ? "hidden" : "block"
+          )}
+        >
+          <div className="flex items-center gap-2 font-mono text-[9.5px] text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+            <span>RAG index ready</span>
+          </div>
+          <div className="mt-1 font-mono text-[8.5px] text-white/30 truncate">
+            {activeProject?.name || "Codebase active"}
+          </div>
         </div>
       </div>
     );
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // JSX Render
-  // ───────────────────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex h-full w-full min-h-0 min-w-0 flex-1 overflow-hidden bg-[#0d0d0d]">
+    <div className="h-full w-full flex flex-col overflow-hidden select-none px-3 md:px-5 lg:px-6 pt-2.5 md:pt-3 pb-3 md:pb-4 max-w-[1780px] mx-auto">
       {isLoadingProjects ? (
-        <div className="flex flex-1 items-center justify-center gap-2 text-xs font-mono text-zinc-400">
-          <LoaderCircle className="size-4 animate-spin text-cyan-400" />
-          Loading project context…
+        <div className="flex flex-1 items-center justify-center gap-2 text-xs font-mono text-muted-foreground">
+          <Orbit className="w-4 h-4 animate-spin text-primary" />
+          <span>Loading project context…</span>
         </div>
       ) : errorLoadingProjects ? (
-        <div className="m-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-5 text-xs text-rose-200">
-          <p className="font-semibold text-rose-100">Could not load projects</p>
-          <p className="mt-1 text-zinc-400">{errorLoadingProjects}</p>
+        <div className="mt-6 rounded-2xl border border-rose-500/20 bg-rose-500/[0.05] p-6 text-center">
+          <p className="font-medium text-white">Failed to load projects</p>
+          <p className="mt-1 text-xs text-rose-300 font-mono">
+            {errorLoadingProjects}
+          </p>
         </div>
       ) : !activeProjectId ? (
-        <section className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center font-mono">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-400/10 border border-amber-400/20">
-            <MessageSquare className="size-7 text-amber-300" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-zinc-200">Choose a project to start chatting</h2>
-            <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-zinc-400">
-              Chat answers are always scoped to one scanned project. Select a project from the dropdown or create one first.
+        <div className="flex-1 flex items-center justify-center p-8 text-center font-mono">
+          <div className="max-w-md p-6 rounded-2xl border border-white/[0.08] bg-[#080b12]/90">
+            <p className="text-base font-semibold text-white">
+              No Project Selected
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Select an active project from the dropdown above to start chatting with your codebase.
             </p>
           </div>
-          <div className="w-72">
-            <ProjectSelector
-              projects={projects}
-              selectedProjectId={activeProjectId}
-              onSelect={selectProject}
-            />
-          </div>
-          <Link
-            href="/projects"
-            className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-medium text-cyan-200 transition-colors hover:bg-cyan-400/20"
-          >
-            <Sparkles className="size-4" />
-            Go to projects
-          </Link>
-        </section>
+        </div>
       ) : (
-        /* ── Main Workspace: Compact Left Sidebar + Conversation Area ── */
-        <div className="flex h-full w-full min-h-0 min-w-0 flex-1 overflow-hidden">
+        /* ── Main Chat Workspace Card matching Figma ── */
+        <section className="relative flex-1 min-h-0 w-full rounded-xl md:rounded-2xl border border-white/[0.07] overflow-hidden bg-[#070910]/88 backdrop-blur-xl shadow-[0_40px_100px_-40px_rgba(0,0,0,0.95)] reveal flex">
+          {/* Subtle Top Hairline Highlight */}
+          <div className="absolute inset-x-0 top-0 h-px cg-hairline z-30 pointer-events-none" />
 
-          {/* ── Desktop Left Sidebar (Collapsible: Expanded w-60 vs Collapsed w-12) ── */}
+          {/* ── Left Sidebar (Desktop) ── */}
           <aside
-            className={`hidden md:flex shrink-0 flex-col border-r border-zinc-800/70 bg-[#171717] transition-all duration-200 ease-in-out ${
-              isSidebarCollapsed ? "w-12 p-1.5" : "w-60 p-2.5"
-            }`}
+            className={cn(
+              "relative flex-shrink-0 h-full border-r border-white/[0.06] bg-gradient-to-b from-[#0b0e18]/95 to-[#080a12]/95 transition-[width] duration-300 overflow-hidden hidden md:block",
+              sidebarOpen ? "w-60 lg:w-68" : "w-14"
+            )}
           >
-            {renderSidebarContent(isSidebarCollapsed)}
+            {renderSidebarContent(!sidebarOpen)}
           </aside>
 
-          {/* ── Mobile Sidebar Drawer & Backdrop ── */}
+          {/* ── Mobile Sidebar Drawer & Overlay ── */}
           {isMobileDrawerOpen && (
             <div className="fixed inset-0 z-50 flex md:hidden">
               <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                 onClick={() => setIsMobileDrawerOpen(false)}
               />
-              <aside className="relative z-10 flex w-68 flex-col border-r border-zinc-800 bg-[#171717] p-3 shadow-2xl">
+              <aside className="relative z-10 flex w-72 flex-col border-r border-white/[0.08] bg-[#0a0d16] p-2 shadow-2xl">
                 {renderSidebarContent(false)}
               </aside>
             </div>
           )}
 
-          {/* ── Main Conversation Area ── */}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#0d0d0d] overflow-hidden">
+          {/* ── Main Conversation Workspace ── */}
+          <div className="min-w-0 flex-1 flex flex-col bg-[#05070b]/70 overflow-hidden">
+            {/* Header Toolbar */}
+            <header className="relative z-20 h-13 md:h-14 flex items-center px-3 md:px-5 border-b border-white/[0.06] bg-[#080a12]/80 shrink-0">
+              {/* Mobile Drawer Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className="md:hidden mr-2.5 w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/[0.05]"
+                aria-label="Open chat sidebar"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
 
-            {/* Top Navigation Bar: Reduced Height & Clean Neutral Border */}
-            <header className="relative z-30 flex h-12 shrink-0 items-center justify-between border-b border-zinc-800/60 bg-[#0d0d0d]/90 px-3 sm:px-6 backdrop-blur-md">
-              <div className="flex min-w-0 items-center gap-2.5">
-                {/* Mobile drawer toggle */}
+              {/* Title & Active Project Breadcrumb */}
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="cg-label !text-foreground/80 hidden sm:inline">
+                  CodeGraph AI
+                </span>
+                <span className="text-white/20 hidden sm:inline">/</span>
+                <span className="font-mono text-[11.5px] text-white truncate">
+                  {activeProject?.name || "Codebase"}
+                </span>
+              </div>
+
+              {/* Active Project Context Selector on Right */}
+              <div className="relative ml-auto shrink-0 z-50" ref={projectRef}>
+                <div className="hidden lg:block cg-label !text-[8px] mb-1">
+                  Active Project Context
+                </div>
                 <button
                   type="button"
-                  onClick={() => setIsMobileDrawerOpen(true)}
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 md:hidden"
-                  aria-label="Open sidebar drawer"
+                  onClick={() => setProjectDropdownOpen((open) => !open)}
+                  className={cn(
+                    "flex items-center gap-2 justify-between w-40 md:w-56 h-8 px-2.5 rounded-md border bg-white/[0.02] transition-all text-[11px]",
+                    projectDropdownOpen
+                      ? "border-primary/40 shadow-[0_0_0_3px_rgba(0,229,255,0.06),0_0_20px_-6px_rgba(0,229,255,0.35)]"
+                      : "border-white/[0.08] hover:border-white/20"
+                  )}
                 >
-                  <Menu className="size-4" />
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#00e5ff]" />
+                    <span className="text-white truncate font-medium">
+                      {activeProject?.name ?? "Select Project"}
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">
+                      #{activeProjectId ?? "—"}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "w-3.5 h-3.5 text-muted-foreground transition-transform",
+                      projectDropdownOpen && "rotate-180 text-primary"
+                    )}
+                  />
                 </button>
 
-                {/* Quick Expand button when desktop sidebar is collapsed */}
-                {isSidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    title="Open sidebar"
-                    className="hidden md:flex rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-                  >
-                    <PanelLeft className="size-4" />
-                  </button>
-                )}
-
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-400">
-                    CODEGRAPH AI
-                  </span>
-                  <span className="text-zinc-700">/</span>
-                  <span className="truncate text-xs font-medium text-zinc-300">
-                    {activeProject?.name ?? `Project #${activeProjectId}`}
-                  </span>
-                </div>
-              </div>
-
-              <div className="shrink-0 max-w-[50vw]">
-                <ProjectSelector
-                  projects={projects}
-                  selectedProjectId={activeProjectId}
-                  onSelect={selectProject}
-                  className="py-1 px-2.5 text-xs rounded-lg border-zinc-800 bg-zinc-900/80"
-                />
-              </div>
-            </header>
-
-            {/* Messages Stream */}
-            <div
-              role="region"
-              aria-label="Conversation timeline"
-              aria-live="polite"
-              className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-            >
-              {isLoadingMessages ? (
-                <div className="flex flex-1 items-center justify-center gap-2 font-mono text-xs text-zinc-500">
-                  <LoaderCircle className="size-4 animate-spin text-cyan-400" />
-                  Loading conversation…
-                </div>
-              ) : messages.length === 0 && !isSubmitting ? (
-                /* Empty state — ChatGPT-style Clean Minimal Greeting */
-                <div className="my-auto flex flex-col items-center justify-center px-4 py-8 text-center">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-zinc-800 border border-zinc-700/60 text-cyan-400 mb-3 shadow-sm">
-                    <Bot className="size-5" />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-100">
-                    Understand your codebase
-                  </h2>
-                  <p className="mt-1.5 max-w-md text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                    Ask questions about dependencies, functions, architecture, or code quality.
-                  </p>
-                  <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg">
-                    {[
-                      "Analyze dependencies",
-                      "Explain this project",
-                      "Find dead code",
-                      "Show architecture",
-                    ].map((hint) => (
+                {projectDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 max-h-72 overflow-y-auto p-1.5 rounded-xl border border-cyan-300/20 bg-[#0a0d16] backdrop-blur-2xl shadow-[0_20px_60px_-10px_rgba(0,0,0,0.95)] z-[100] cg-pop">
+                    <div className="cg-label px-2.5 pt-1.5 pb-2 !text-[9px]">
+                      Switch project
+                    </div>
+                    {projects.map((option) => (
                       <button
-                        key={hint}
+                        key={option.id}
                         type="button"
-                        onClick={() => setQuestion(hint)}
-                        className="rounded-full border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 hover:border-zinc-700 hover:text-cyan-200 px-4 py-2 text-xs text-zinc-300 transition-all text-center shadow-sm cursor-pointer"
+                        onClick={() => {
+                          selectProject(option.id);
+                          setProjectDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors",
+                          option.id === activeProjectId
+                            ? "bg-primary/[0.08]"
+                            : "hover:bg-white/[0.04]"
+                        )}
                       >
-                        {hint}
+                        {option.id === activeProjectId && (
+                          <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-primary" />
+                        )}
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[12px] text-white truncate font-medium">
+                            {option.name}{" "}
+                            <span className="font-mono text-[10px] text-muted-foreground font-normal">
+                              (#{option.id})
+                            </span>
+                          </span>
+                          {option.github_url && (
+                            <span className="block font-mono text-[9px] text-muted-foreground truncate">
+                              {option.github_url}
+                            </span>
+                          )}
+                        </span>
+                        {option.id === activeProjectId && (
+                          <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                        )}
                       </button>
                     ))}
                   </div>
+                )}
+              </div>
+            </header>
+
+            {/* Scrollable Conversation Stream */}
+            <div
+              ref={scrollRef}
+              role="region"
+              aria-label="Conversation stream"
+              className="relative flex-1 min-h-0 overflow-y-auto chat-surface"
+            >
+              {isLoadingMessages ? (
+                <div className="h-full flex items-center justify-center gap-2 font-mono text-xs text-muted-foreground">
+                  <Orbit className="w-4 h-4 animate-spin text-primary" />
+                  <span>Loading conversation…</span>
+                </div>
+              ) : messages.length === 0 && !isSubmitting ? (
+                /* Empty Chat Greeting matching Figma */
+                <div className="h-full min-h-[460px] flex items-center justify-center px-4 py-8">
+                  <div className="relative text-center max-w-xl">
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 w-48 h-32 rounded-full bg-cyan-500/[0.055] blur-[55px]" />
+                    <span className="relative mx-auto w-14 h-14 rounded-2xl border border-primary/25 bg-[#090d15] flex items-center justify-center shadow-[0_0_38px_-12px_rgba(0,229,255,0.5)]">
+                      <Sparkles className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                    </span>
+                    <h1 className="relative mt-5 text-2xl md:text-[28px] font-semibold tracking-[-0.025em] text-white">
+                      Understand your codebase
+                    </h1>
+                    <p className="mt-2 text-[13.5px] text-muted-foreground leading-relaxed">
+                      Ask questions about dependencies, functions, architecture, or code quality.
+                    </p>
+
+                    <div className="mt-6 flex flex-wrap justify-center gap-2">
+                      {[
+                        [
+                          "Analyze dependencies",
+                          GitBranch,
+                          "Analyze dependencies across this project",
+                        ],
+                        [
+                          "Explain this project",
+                          Code2,
+                          "Explain the architecture and purpose of this project",
+                        ],
+                        [
+                          "Find dead code",
+                          Braces,
+                          "Find unused functions, classes, or dead code in this repository",
+                        ],
+                        [
+                          "Show architecture",
+                          Network,
+                          "Show the high-level architecture and components of this codebase",
+                        ],
+                      ].map(([label, Icon, promptText]) => (
+                        <button
+                          key={label as string}
+                          type="button"
+                          onClick={() => void submitQuestion(undefined, promptText as string)}
+                          className="h-9 px-3 rounded-lg border border-white/[0.08] bg-white/[0.02] text-[11.5px] text-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/[0.04] transition-all flex items-center gap-2 cursor-pointer"
+                        >
+                          {React.createElement(Icon as React.ElementType, {
+                            className: "w-3.5 h-3.5 text-primary/80",
+                          })}
+                          <span>{label as string}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
-                /* Active Message Stream: Centered readable max-width */
-                <div className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-4 sm:px-6 py-6">
+                /* Active Conversation Stream */
+                <div className="max-w-[920px] mx-auto px-4 md:px-8 py-8 space-y-7">
                   {messages.map((message) =>
                     message.role === "user" ? (
                       <UserMessage key={message.id} question={message.question} />
@@ -1347,6 +1568,33 @@ export default function ChatPage() {
                       />
                     )
                   )}
+
+                  {/* Thinking animation state */}
+                  {isSubmitting && messages[messages.length - 1]?.role === "user" && (
+                    <div className="flex gap-4 cg-pop">
+                      <span className="w-8 h-8 rounded-lg border border-primary/25 bg-primary/[0.07] flex items-center justify-center shrink-0">
+                        <Orbit className="w-4 h-4 text-primary" />
+                      </span>
+                      <div>
+                        <div className="text-[13px] font-semibold text-white">
+                          CodeGraph AI
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2 font-mono text-[10.5px] text-muted-foreground">
+                          <span>Analyzing codebase</span>
+                          <span className="flex gap-1">
+                            {[0, 1, 2].map((i) => (
+                              <span
+                                key={i}
+                                className="w-1 h-1 rounded-full bg-primary cg-dot"
+                                style={{ animationDelay: `${i * 140}ms` }}
+                              />
+                            ))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
               )}
@@ -1354,61 +1602,93 @@ export default function ChatPage() {
 
             {/* Error Banner */}
             {error && (
-              <div className="mx-auto w-full max-w-[880px] px-4 sm:px-6 mb-2">
-                <div className="flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-rose-100">Could not answer question</p>
-                    <p className="mt-0.5 text-rose-200/80">{error}</p>
+              <div className="px-4 md:px-6 py-2 shrink-0">
+                <div className="max-w-[920px] mx-auto flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-200">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-rose-100">
+                        Unable to generate a response
+                      </p>
+                      <p className="mt-0.5 text-rose-200/80">{error}</p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const lastUser = [...messages]
+                        .reverse()
+                        .find((m) => m.role === "user");
+                      if (lastUser && lastUser.role === "user") {
+                        void submitQuestion(undefined, lastUser.question);
+                      }
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-rose-400/30 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30 transition-colors font-mono text-[11px]"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Retry</span>
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* ── Bottom Floating Composer (ChatGPT-style Compact Rounded Container) ── */}
-            <div className="shrink-0 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d]/95 to-transparent px-4 sm:px-6 pb-3 sm:pb-4 pt-2">
+            {/* ── Chat Input Composer matching Figma ── */}
+            <div className="relative z-20 px-3 md:px-6 pt-2.5 pb-3 md:pb-4 border-t border-white/[0.05] bg-[#070910]/92 backdrop-blur-xl shrink-0">
               <form
                 onSubmit={(event) => void submitQuestion(event)}
-                className="mx-auto w-full max-w-[880px]"
+                className="max-w-[920px] mx-auto"
               >
-                <div className="relative flex items-center gap-2 rounded-[26px] border border-zinc-700/60 bg-[#212121] shadow-xl transition-all focus-within:border-zinc-500 focus-within:ring-1 focus-within:ring-zinc-600 px-4 py-2">
-                  <label htmlFor="codebase-question" className="sr-only">
-                    Ask about your codebase
-                  </label>
+                <div className="group flex items-end gap-2 rounded-xl border border-white/[0.1] bg-[#0a0d15] p-2 focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(0,229,255,0.05),0_0_28px_-12px_rgba(0,229,255,0.5)] transition-all">
                   <textarea
                     ref={textareaRef}
-                    id="codebase-question"
+                    id="codebase-chat-input"
                     value={question}
                     onChange={(event) => setQuestion(event.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={isSubmitting}
                     rows={1}
                     placeholder="Ask about your codebase..."
-                    className="block w-full resize-none bg-transparent py-1 text-[14.5px] leading-relaxed text-zinc-100 outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-[36px] max-h-36"
+                    className="flex-1 max-h-32 resize-none bg-transparent outline-none px-2 py-2 text-[13.5px] leading-5 text-white placeholder:text-muted-foreground/60 disabled:opacity-40"
                   />
                   <button
                     type="submit"
-                    disabled={isSubmitting || !question.trim()}
-                    className="size-8 shrink-0 rounded-full bg-zinc-100 text-zinc-950 hover:bg-white flex items-center justify-center transition-all disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-600 shadow-sm active:scale-95"
-                    title="Send message"
+                    disabled={!question.trim() || isSubmitting}
+                    aria-label="Send message"
+                    className="w-9 h-9 rounded-lg bg-[#00c4dc] text-[#05070f] flex items-center justify-center hover:bg-[#00d4ec] hover:shadow-[0_0_18px_-6px_rgba(0,229,255,0.5)] disabled:opacity-30 disabled:shadow-none active:scale-[0.97] transition-all shrink-0 cursor-pointer"
                   >
                     {isSubmitting ? (
-                      <LoaderCircle className="size-4 animate-spin text-zinc-600" />
+                      <Orbit className="w-4 h-4 animate-spin text-[#05070f]" />
                     ) : (
-                      <Send className="size-3.5" />
+                      <Send className="w-4 h-4" />
                     )}
                   </button>
                 </div>
-                <div className="mt-1.5 text-center">
-                  <span className="text-[11px] text-zinc-500 select-none">
-                    Enter to send · Shift + Enter for new line
+                <div className="mt-1.5 flex items-center justify-between px-1 font-mono text-[8.5px] text-white/30">
+                  <span>Enter to send · Shift + Enter for new line</span>
+                  <span className="hidden sm:inline">
+                    Grounded in {activeProject?.name || "active project"}
                   </span>
                 </div>
               </form>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center gap-2 font-mono text-xs text-muted-foreground">
+          <Orbit className="w-4 h-4 animate-spin text-primary" />
+          <span>Loading chat workspace…</span>
+        </div>
+      }
+    >
+      <ChatPageInner />
+    </Suspense>
   );
 }
