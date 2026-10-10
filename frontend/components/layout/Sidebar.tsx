@@ -16,7 +16,6 @@ import {
   CircleOff,
   Activity,
   CheckSquare,
-  BarChart,
   BookOpen,
   Settings,
   ChevronLeft,
@@ -66,7 +65,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "System",
     items: [
-      { href: "/analytics", label: "Analytics", icon: BarChart },
       { href: "/user-guide", label: "User Guide", icon: BookOpen },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
