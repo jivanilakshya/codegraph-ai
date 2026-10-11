@@ -89,12 +89,12 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "fixed top-14 bottom-0 left-0 z-30 flex flex-col border-r border-white/[0.05] bg-[#06070c]/85 backdrop-blur-xl transition-all duration-300",
+        "fixed top-14 bottom-0 left-0 z-30 flex flex-col border-r border-white/[0.06] transition-all duration-300",
         mobile
-          ? "w-60 translate-x-0"
+          ? "w-60 translate-x-0 bg-[#03070d] shadow-2xl"
           : collapsed
-          ? "hidden lg:flex lg:w-[60px]"
-          : "hidden lg:flex lg:w-60"
+          ? "hidden lg:flex lg:w-[60px] bg-transparent"
+          : "hidden lg:flex lg:w-60 bg-transparent"
       )}
     >
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2">
@@ -118,12 +118,13 @@ export function Sidebar({
                   key={item.label}
                   href={item.href}
                   onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    "relative flex items-center gap-3 h-8 px-3 rounded-md w-full text-left transition-colors duration-200 group",
+                    "sidebar-nav-item relative flex items-center gap-3 h-8 px-3 rounded-md w-full text-left group",
                     active
-                      ? "bg-white/[0.045] text-white"
-                      : "text-[#8792a6] hover:bg-white/[0.03] hover:text-foreground"
+                      ? "active text-white font-medium"
+                      : "text-[#8792a6] hover:text-foreground"
                   )}
                 >
                   {active && (
@@ -152,11 +153,11 @@ export function Sidebar({
         ))}
       </nav>
 
-      <div className="p-2 border-t border-white/[0.05] hidden lg:block">
+      <div className="p-2 border-t border-white/[0.06] hidden lg:block">
         <button
           type="button"
           onClick={onToggle}
-          className="flex items-center justify-center gap-2 w-full h-8 text-muted-foreground hover:text-foreground hover:bg-white/[0.03] rounded-md transition-colors"
+          className="flex items-center justify-center gap-2 w-full h-8 text-muted-foreground hover:text-foreground hover:bg-[rgba(148,180,210,0.045)] rounded-md transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {!collapsed ? (

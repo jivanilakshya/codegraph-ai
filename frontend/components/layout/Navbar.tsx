@@ -16,7 +16,7 @@ export function Navbar({ onOpenSidebar, sidebarOpen = true }: NavbarProps) {
   const segment = pathname.split("/").filter(Boolean)[0] || "dashboard";
 
   return (
-    <header className="fixed top-0 inset-x-0 h-14 z-40 flex items-center px-3 md:px-4 justify-between transition-all duration-300 border-b bg-[#06070c]/80 backdrop-blur-xl border-white/[0.06]">
+    <header className="fixed top-0 inset-x-0 h-14 z-40 flex items-center px-3 md:px-4 justify-between transition-all duration-300 border-b bg-[#03070d]/80 backdrop-blur-xl border-white/[0.06]">
       <div className="flex items-center gap-3">
         <button
           type="button"
