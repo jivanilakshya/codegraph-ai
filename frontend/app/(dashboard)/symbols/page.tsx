@@ -270,7 +270,6 @@ function SymbolsPageInner() {
       >
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
             <span className="cg-label">CodeGraph AI / Code Analysis</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">
@@ -295,7 +294,6 @@ function SymbolsPageInner() {
             )}
           >
             <span className="flex items-center gap-2 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="text-white font-medium truncate">
                 {activeProject?.name ?? "Select Project"}
               </span>
@@ -552,10 +550,6 @@ function SymbolsPageInner() {
                             <span className="font-mono text-[12.5px] truncate">
                               {fileName}
                             </span>
-
-                            {isActive && (
-                              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#00e5ff] shrink-0" />
-                            )}
                           </button>
                         </li>
                       );

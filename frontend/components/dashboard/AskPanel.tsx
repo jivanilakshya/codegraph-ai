@@ -114,7 +114,6 @@ export function AskPanel({
 
         {/* Context bar */}
         <div className="px-4 py-2.5 border-b border-white/[0.04] flex items-center gap-2 font-mono text-[11px] text-muted-foreground shrink-0 bg-white/[0.01]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
           <span>context:</span>
           <span className="text-foreground font-medium truncate max-w-[180px]">
             {projectName}

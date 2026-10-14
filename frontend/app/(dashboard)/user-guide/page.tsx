@@ -228,7 +228,6 @@ export default function UserGuidePage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="cg-label !text-[10px]">CODEGRAPH AI / DOCUMENTATION</span>
             </div>
             <div className="flex items-center gap-3">
@@ -422,7 +421,6 @@ export default function UserGuidePage() {
 
             <div className="rounded-lg border border-white/[0.08] bg-[#080b12] p-4 font-mono text-xs space-y-2">
               <div className="text-white font-semibold flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 <span>Active Project Resolution Priority (useActiveProject):</span>
               </div>
               <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground pl-1">
@@ -926,7 +924,6 @@ module → function_definition [name: "calculate_complexity"]
 
             <div className="rounded-lg border border-white/[0.08] bg-[#080b12] p-4.5 space-y-3.5">
               <div className="font-mono text-xs font-bold text-white flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 <span>Hybrid Retrieval Architecture:</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs font-mono">
@@ -1144,7 +1141,6 @@ module → function_definition [name: "calculate_complexity"]
             ].map((item, idx) => (
               <div key={idx} className="rounded-lg border border-white/[0.07] bg-[#080b12] p-4 space-y-1.5">
                 <div className="font-mono text-xs font-bold text-white flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-rose-400 shrink-0" />
                   <span>{item.issue}</span>
                 </div>
                 <div className="text-xs text-[#9bb0c7] pl-4 leading-relaxed font-sans">{item.fix}</div>

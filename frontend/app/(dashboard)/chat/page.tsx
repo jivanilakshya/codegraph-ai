@@ -469,7 +469,6 @@ function AssistantMessage({
       {/* Bot Avatar matching Figma */}
       <span className="relative w-8 h-8 mt-0.5 rounded-lg border border-primary/25 bg-primary/[0.07] flex items-center justify-center flex-shrink-0">
         <Orbit className="w-4 h-4 text-primary" />
-        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-emerald-400 border-2 border-[#070910]" />
       </span>
 
       <div className="flex-1 min-w-0">
@@ -1320,7 +1319,6 @@ function ChatPageInner() {
           )}
         >
           <div className="flex items-center gap-2 font-mono text-[9.5px] text-muted-foreground">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
             <span>RAG index ready</span>
           </div>
           <div className="mt-1 font-mono text-[8.5px] text-white/30 truncate">
@@ -1427,7 +1425,6 @@ function ChatPageInner() {
                   )}
                 >
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#00e5ff]" />
                     <span className="text-white truncate font-medium">
                       {activeProject?.name ?? "Select Project"}
                     </span>

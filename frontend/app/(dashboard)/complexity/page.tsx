@@ -217,7 +217,6 @@ function ComplexityPageInner() {
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="cg-label">CODEGRAPH AI / CODE QUALITY</span>
             </div>
             <div className="flex items-center gap-3">
@@ -282,7 +281,6 @@ function ComplexityPageInner() {
                 )}
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#00e5ff] shrink-0" />
                   <span className="text-white font-medium truncate max-w-[140px] sm:max-w-[180px]">
                     {activeProject?.name ?? "Select Project"}
                   </span>

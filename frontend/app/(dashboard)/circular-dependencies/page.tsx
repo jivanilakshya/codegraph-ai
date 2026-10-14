@@ -244,7 +244,6 @@ export default function CircularDependenciesPage() {
         <div>
           {/* Eyebrow */}
           <div className="flex items-center gap-2 mb-2.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.85)]" />
             <span className="cg-label !text-[10px]">
               CODEGRAPH AI / CODE QUALITY
             </span>
@@ -300,7 +299,6 @@ export default function CircularDependenciesPage() {
                   : "border-white/[0.1] bg-white/[0.03] hover:border-cyan-400/30 hover:bg-[#0c1422] text-slate-200"
               )}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#00e5ff] shrink-0" />
               <span className="text-white font-medium truncate max-w-[140px] sm:max-w-[180px]">
                 {activeProject?.name ?? "Select Project"}
               </span>
@@ -350,7 +348,6 @@ export default function CircularDependenciesPage() {
                           )}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00e5ff] shrink-0" />
                             <span className="text-[13px] font-medium text-white truncate">
                               {proj.name}
                             </span>

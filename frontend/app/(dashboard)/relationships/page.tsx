@@ -222,9 +222,6 @@ function RepositoryTreeNodes({
               <span className="font-mono text-[12px] 2xl:text-[13px] truncate">
                 {node.name}
               </span>
-              {isSelected && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_#00e5ff] shrink-0" />
-              )}
             </button>
           </li>
         );
@@ -453,7 +450,6 @@ function RelationshipsPageInner() {
       <header className="relative z-40 shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-3 pb-2.5 border-b border-white/[0.06] mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
             <span className="cg-label">CodeGraph AI / Code Analysis</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">
@@ -502,7 +498,6 @@ function RelationshipsPageInner() {
             )}
           >
             <span className="flex items-center gap-2 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="text-white font-medium truncate">
                 {activeProject?.name ?? "Select Project"}
               </span>

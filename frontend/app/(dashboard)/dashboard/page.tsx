@@ -212,15 +212,6 @@ export default function DashboardPage() {
         >
           <div>
             <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground mb-3">
-              <span className="relative flex w-1.5 h-1.5">
-                <span
-                  className={cn(
-                    "absolute inset-0 rounded-full bg-emerald-400",
-                    isRefreshing ? "cg-ring" : "animate-ping opacity-60"
-                  )}
-                />
-                <span className="relative w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              </span>
               <span>{isRefreshing ? "syncing graph…" : `live · last sync ${lastSyncTime}`}</span>
             </div>
             <h1 className="text-4xl md:text-[56px] leading-[1] font-bold tracking-[-0.035em] text-white">
@@ -246,7 +237,6 @@ export default function DashboardPage() {
                 )}
               >
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff] flex-shrink-0" />
                   <span className="text-white font-medium truncate">
                     {activeProject ? activeProject.name : "Select a project…"}
                   </span>
@@ -362,10 +352,6 @@ export default function DashboardPage() {
 
           <div className="relative p-6 md:p-8 min-h-[230px] flex flex-col justify-between gap-6">
             <div className="flex items-center gap-2.5">
-              <span className="relative flex w-2 h-2">
-                <span className="absolute inset-0 rounded-full bg-primary cg-ring" />
-                <span className="relative w-2 h-2 rounded-full bg-primary" />
-              </span>
               <span className="cg-label !text-primary/90">Active Workspace Project</span>
             </div>
 
@@ -395,7 +381,6 @@ export default function DashboardPage() {
                   <span>project #{activeProject.id}</span>
                   <span className="hidden sm:inline text-white/15">│</span>
                   <span className="text-primary/80 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                     analysis ready · {totalNodes} nodes
                   </span>
                 </div>
@@ -900,9 +885,7 @@ export default function DashboardPage() {
             <div
               aria-hidden
               className="hidden lg:block absolute left-[10%] right-[10%] top-[42px] h-px bg-gradient-to-r from-emerald-400/0 via-emerald-400/25 to-emerald-400/0"
-            >
-              <span className="absolute -top-[2px] w-1.5 h-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_#6ee7b7] cg-scanline" />
-            </div>
+            />
 
             <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 md:gap-6">
               {[
@@ -948,22 +931,12 @@ export default function DashboardPage() {
                 >
                   <div className="relative w-9 h-9 rounded-full flex items-center justify-center bg-[#0a0d16] border border-white/[0.08] flex-shrink-0 group-hover:border-primary/40 transition-colors">
                     <svc.icon className="w-4 h-4 text-foreground/70 group-hover:text-primary transition-colors" />
-                    <span className="absolute -right-0.5 -bottom-0.5 flex w-2.5 h-2.5">
-                      {svc.connected ? (
-                        <>
-                          <span className="absolute inset-0 rounded-full bg-emerald-400 cg-ring" />
-                          <span className="relative w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0a0d16]" />
-                        </>
-                      ) : (
-                        <span className="relative w-2.5 h-2.5 rounded-full bg-zinc-600 border-2 border-[#0a0d16]" />
-                      )}
-                    </span>
                   </div>
                   <div>
                     <div className="text-[14px] text-white font-medium">{svc.name}</div>
                     <div className="mt-0.5 flex flex-wrap lg:justify-center items-center gap-x-2 font-mono text-[11px]">
                       <span className={svc.connected ? "text-emerald-400" : "text-[#737373]"}>
-                        ● {svc.statusLabel}
+                        {svc.statusLabel}
                       </span>
                       <span className="text-muted-foreground">{svc.meta}</span>
                     </div>

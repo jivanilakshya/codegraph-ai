@@ -437,7 +437,7 @@ export default function HomePage() {
           <div className="hero-grid">
             <div className="hero-copy">
               <div className="hero-badge">
-                <i /> CODE INTELLIGENCE ENGINE
+                CODE INTELLIGENCE ENGINE
               </div>
               <h1>
                 CodeGraph <span>AI</span>
@@ -604,7 +604,7 @@ export default function HomePage() {
               <b>Project Health</b>
               <span>example-project⌄</span>
               <small>
-                Last scanned 2 hours ago <i />
+                Last scanned 2 hours ago
               </small>
             </div>
             <div className="health-overview">

@@ -11,8 +11,14 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function getProjectGraph(projectId: number, signal?: AbortSignal) {
-  return request<ProjectGraph>(`/api/v1/projects/${projectId}/graph`, signal);
+import { cachedRequest } from "@/lib/apiCache";
+
+export function getProjectGraph(projectId: number, signal?: AbortSignal, forceRefresh = false) {
+  return cachedRequest<ProjectGraph>(
+    `project:${projectId}:graph`,
+    () => request<ProjectGraph>(`/api/v1/projects/${projectId}/graph`, signal),
+    forceRefresh ? 0 : 45_000
+  );
 }
 
 export function searchProjectGraphNodes(

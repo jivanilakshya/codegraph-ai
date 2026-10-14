@@ -598,7 +598,8 @@ export function getVisibleArchitectureGraph(
       if (visitedFolders.has(currentFolderId)) continue;
       visitedFolders.add(currentFolderId);
 
-      if (expandedNodeIds.has(currentFolderId)) {
+      const isFolderExpanded = depth >= 2 || expandedNodeIds.has(currentFolderId);
+      if (isFolderExpanded) {
         const children = tree.childrenMap.get(currentFolderId) ?? [];
         children.forEach((childId) => {
           const childNode = tree.allNodes.get(childId);
@@ -609,7 +610,7 @@ export function getVisibleArchitectureGraph(
             visibleIds.add(childId);
             folderQueue.push(childId);
           } else if (childNode.type === "file") {
-            // Child file is revealed ONLY at Depth 2 or Depth 3!
+            // Child file is revealed at Depth 2 or Depth 3
             if (depth >= 2) {
               visibleIds.add(childId);
             }
@@ -618,13 +619,16 @@ export function getVisibleArchitectureGraph(
       }
     }
 
-    // 4. Progressively reveal functions/methods if file is expanded (ONLY at Depth 3)
+    // 4. Progressively reveal functions/methods if file is expanded (at Depth 3)
     if (depth >= 3) {
       visibleIds.forEach((nodeId) => {
         const node = tree.allNodes.get(nodeId);
-        if (node && node.type === "file" && expandedNodeIds.has(nodeId)) {
-          const declaredEntities = tree.fileEntitiesMap.get(nodeId) ?? [];
-          declaredEntities.forEach((entityId) => visibleIds.add(entityId));
+        if (node && node.type === "file") {
+          const isFileExpanded = depth >= 3 || expandedNodeIds.has(nodeId);
+          if (isFileExpanded) {
+            const declaredEntities = tree.fileEntitiesMap.get(nodeId) ?? [];
+            declaredEntities.forEach((entityId) => visibleIds.add(entityId));
+          }
         }
       });
     }

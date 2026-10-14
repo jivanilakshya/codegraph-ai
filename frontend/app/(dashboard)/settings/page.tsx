@@ -2,7 +2,9 @@
 
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Cpu,
   FolderGit2,
   Info,
@@ -13,13 +15,13 @@ import {
   Save,
   ShieldAlert,
   Sparkles,
-  Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { useActiveProject } from "@/hooks/useActiveProject";
+import { cn } from "@/lib/cn";
 import {
   getProjectSettings,
   resetProjectSettings,
@@ -123,6 +125,21 @@ export default function SettingsPage() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Model selector dropdown state
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close model dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Status feedback
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -278,7 +295,7 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto xl:shrink-0">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-end xl:w-auto xl:shrink-0">
             <ProjectSelector
               projects={projects}
               selectedProjectId={activeProjectId}
@@ -289,10 +306,11 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => void loadSettings(activeProjectId)}
                 disabled={isLoadingSettings}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-500/40 hover:text-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3.5 text-xs font-mono text-slate-200 transition-all hover:border-primary/40 hover:text-primary hover:shadow-[0_0_20px_-4px_rgba(0,229,255,0.4)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title="Reload Settings"
               >
-                <RefreshCw className={`size-4 ${isLoadingSettings ? "animate-spin" : ""}`} />
-                Reload
+                <RefreshCw className={`size-3.5 ${isLoadingSettings ? "animate-spin text-primary" : ""}`} />
+                <span>Reload</span>
               </button>
             )}
           </div>
@@ -519,18 +537,83 @@ export default function SettingsPage() {
                 <p className="mt-0.5 text-xs text-slate-400">
                   Select an available LLM model installed on your local Ollama service.
                 </p>
-                <div className="mt-2.5 max-w-md">
-                  <select
-                    value={settings.ollama_model}
-                    onChange={(e) => setSettings({ ...settings, ollama_model: e.target.value })}
-                    className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 text-sm font-mono text-slate-100 outline-none focus:border-cyan-500"
+                <div className="relative mt-2.5 max-w-md z-30" ref={modelDropdownRef}>
+                  <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={modelDropdownOpen}
+                    onClick={() => setModelDropdownOpen((prev) => !prev)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setModelDropdownOpen(false);
+                      } else if (e.key === "ArrowDown" && !modelDropdownOpen) {
+                        e.preventDefault();
+                        setModelDropdownOpen(true);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 justify-between w-full h-10 pl-3 pr-2.5 rounded-lg border bg-white/[0.02] transition-all text-[13px] font-mono cursor-pointer",
+                      modelDropdownOpen
+                        ? "border-primary/40 shadow-[0_0_0_3px_rgba(0,229,255,0.06),0_0_24px_-6px_rgba(0,229,255,0.35)]"
+                        : "border-white/[0.08] hover:border-white/20"
+                    )}
                   >
-                    {settings.available_ollama_models.map((model) => (
-                      <option key={model} value={model} className="bg-slate-950 font-mono">
-                        {model}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <Cpu className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span className="text-white font-medium truncate">
+                        {settings.ollama_model || "Select a model…"}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-muted-foreground transition-transform duration-300 shrink-0",
+                        modelDropdownOpen && "rotate-180 text-primary"
+                      )}
+                    />
+                  </button>
+
+                  {modelDropdownOpen && (
+                    <ul
+                      role="listbox"
+                      aria-label="Available Ollama models"
+                      className="absolute top-full left-0 mt-2 w-full p-1.5 rounded-xl border border-cyan-300/15 bg-[#0a0d16]/95 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8),0_0_30px_-10px_rgba(0,229,255,0.25)] z-50 cg-pop max-h-60 overflow-y-auto"
+                    >
+                      <div className="cg-label px-2.5 pt-1.5 pb-2 !text-[9.5px]">Available Ollama Models</div>
+                      {(!settings.available_ollama_models || settings.available_ollama_models.length === 0) ? (
+                        <li className="p-3 text-xs text-muted-foreground font-mono text-center">
+                          No models discovered on local Ollama service.
+                        </li>
+                      ) : (
+                        settings.available_ollama_models.map((model) => {
+                          const isSelected = settings.ollama_model === model;
+                          return (
+                            <li
+                              key={model}
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                setSettings({ ...settings, ollama_model: model });
+                                setModelDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "relative w-full flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-left transition-colors cursor-pointer font-mono text-[13px]",
+                                isSelected
+                                  ? "bg-primary/[0.07] text-white font-medium"
+                                  : "text-foreground/85 hover:bg-white/[0.04] hover:text-white"
+                              )}
+                            >
+                              {isSelected && (
+                                <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-primary" />
+                              )}
+                              <Cpu className={cn("w-4 h-4 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                              <span className="flex-1 truncate">{model}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
+                  )}
                 </div>
               </div>
 

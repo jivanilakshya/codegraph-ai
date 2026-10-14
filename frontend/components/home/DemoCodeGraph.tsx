@@ -176,7 +176,6 @@ export function DemoCodeGraph() {
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-12">
         <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[#737373] mb-3">
-          <span className="size-1.5 rounded-full bg-white animate-ping" />
           STRUCTURAL CODE INTELLIGENCE
         </div>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
@@ -206,7 +205,7 @@ export function DemoCodeGraph() {
 
           <div className="flex items-center gap-4 text-[11px]">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-white" /> Live Pipeline Stream
+              Live Pipeline Stream
             </span>
             <span className="hidden sm:inline">Neo4j Cypher + Qdrant</span>
           </div>

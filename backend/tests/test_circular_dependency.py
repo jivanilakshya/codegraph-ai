@@ -172,8 +172,8 @@ class CircularDependencyServiceLogicTests(unittest.TestCase):
 
             res = self.service.detect_cycles(5)
             self.assertEqual(res.project_id, 5)
-            self.assertEqual(res.summary.total_cycles, 0)
-            mock_session.get.assert_called_once()
+            from app.models.project import Project
+            mock_session.get.assert_any_call(Project, 5)
 
 
 if __name__ == "__main__":

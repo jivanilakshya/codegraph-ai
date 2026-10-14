@@ -93,7 +93,6 @@ export function ASTDetails({ selectedNode, selectedFile, projectId, className }:
       <div className="h-11 flex items-center gap-2 px-3.5 border-b border-white/[0.06] shrink-0 sticky top-0 bg-[#0b0e18]/95 backdrop-blur z-10">
         <Braces className="w-4 h-4 text-[#00e5ff]/80" />
         <span className="font-mono text-[11.5px] tracking-[0.12em] uppercase text-white/50 font-semibold">AST Details</span>
-        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
       </div>
 
       <div key={selectedNode.id} className="p-4 space-y-4 cg-pop">

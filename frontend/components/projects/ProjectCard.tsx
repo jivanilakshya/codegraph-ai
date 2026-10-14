@@ -93,16 +93,11 @@ export function ProjectCard({
             SCANNING
           </span>
         ) : isActive ? (
-          <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-primary px-2 py-1 rounded border border-primary/30 bg-primary/10">
-            <span className="relative flex w-1.5 h-1.5">
-              <span className="absolute inset-0 rounded-full bg-primary cg-ring" />
-              <span className="relative w-1.5 h-1.5 rounded-full bg-primary" />
-            </span>
+          <span className="font-mono text-[9.5px] tracking-[0.14em] text-primary px-2 py-1 rounded border border-primary/30 bg-primary/10">
             ACTIVE
           </span>
         ) : (
-          <span className="flex items-center gap-1.5 font-mono text-[9.5px] tracking-[0.14em] text-emerald-300/90 px-2 py-1 rounded border border-emerald-400/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <span className="font-mono text-[9.5px] tracking-[0.14em] text-emerald-300/90 px-2 py-1 rounded border border-emerald-400/20">
             READY
           </span>
         )}

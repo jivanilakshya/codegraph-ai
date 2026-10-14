@@ -173,7 +173,6 @@ export function GraphInspector({
       <div className="h-12 flex items-center gap-2 px-4 border-b border-white/[0.06] sticky top-0 bg-[#0a0d16]/95 backdrop-blur z-10 shrink-0">
         <CircleDot className="w-3.5 h-3.5 text-primary/80" />
         <span className="cg-label !text-foreground/80">Node Details</span>
-        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
       </div>
 
       <div key={node.id} className="p-4 cg-pop flex-1 flex flex-col">

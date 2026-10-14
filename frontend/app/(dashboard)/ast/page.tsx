@@ -567,7 +567,6 @@ function AstPageInner() {
       >
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
             <span className="cg-label">CodeGraph AI / Structural Analysis</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">
@@ -592,7 +591,6 @@ function AstPageInner() {
             )}
           >
             <span className="flex items-center gap-2 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="text-white font-medium truncate">
                 {activeProject?.name ?? "Select Project"}
               </span>
@@ -762,6 +760,12 @@ function AstPageInner() {
                       Active Project / {activeProject?.name ?? "Project"}
                     </span>
                   </div>
+
+                  {workspaceError && (
+                    <div className="mx-3 my-2 px-2.5 py-2 rounded border border-rose-500/30 bg-rose-500/10 font-mono text-[11px] text-rose-300">
+                      {workspaceError}
+                    </div>
+                  )}
 
                   <ul
                     className={cn(
@@ -1055,9 +1059,6 @@ function AstPageInner() {
                   <span className="cg-label !text-foreground/80 font-semibold">
                     AST Details
                   </span>
-                  {selectedEntity && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff] shrink-0" />
-                  )}
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto">

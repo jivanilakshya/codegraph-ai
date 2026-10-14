@@ -260,7 +260,6 @@ export function CodeViewer({
               : "text-violet-300 border-violet-400/25 bg-violet-400/[0.06]"
           }`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${isSkyLang ? "bg-sky-300" : "bg-violet-300"}`} />
           {file.language || "Plain Text"}
         </span>
 
@@ -340,7 +339,6 @@ export function CodeViewer({
       {/* Editor Footer Bar */}
       <div className="h-7 flex items-center gap-4 px-4 border-t border-white/[0.05] font-mono text-[10.5px] text-muted-foreground shrink-0 select-none">
         <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
           indexed
         </span>
         <span>UTF-8</span>

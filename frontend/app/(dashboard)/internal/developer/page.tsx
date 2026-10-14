@@ -2,44 +2,24 @@
 
 import {
   Activity,
-  AlertCircle,
-  ArrowRight,
-  Bot,
   Braces,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Code2,
   Copy,
-  Cpu,
   Database,
-  FileCode2,
-  FolderGit2,
-  Gauge,
-  GitFork,
-  GitGraph,
   Globe,
-  Info,
   Layers,
   Network,
   Play,
   RefreshCw,
-  Search,
   Server,
-  ShieldAlert,
-  ShieldCheck,
   Terminal,
-  Workflow,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ProjectSelector } from "@/components/developer/ProjectSelector";
 import { useActiveProject } from "@/hooks/useActiveProject";
-import { getProjectCircularDependencies } from "@/services/circular_dependency";
 import { getProjectCodeQuality } from "@/services/code_quality";
-import { getProjectComplexity } from "@/services/complexity";
-import { getProjectDeadCode } from "@/services/dead_code";
 import {
   DeveloperRequestError,
   developerRequest,
@@ -47,12 +27,10 @@ import {
   getSystemHealth,
 } from "@/services/developer";
 import { getProjectGraph } from "@/services/graph";
-import { getProjects } from "@/services/projects";
 import { getProjectSettings } from "@/services/settings";
 import { getFileAnalysis, getRepositoryWorkspace } from "@/services/workspace";
 import type { HealthResponse } from "@/types/developer";
 import type { ProjectGraph } from "@/types/graph";
-import type { Project } from "@/types/project";
 import type { RepositoryWorkspace } from "@/types/workspace";
 
 // ---------------------------------------------------------------------------
@@ -199,14 +177,8 @@ function ConsoleSection({
 // ---------------------------------------------------------------------------
 
 export default function InternalDeveloperConsolePage() {
-  const {
-    projects,
-    activeProject,
-    activeProjectId,
-    isLoadingProjects,
-    errorLoadingProjects,
-    selectProject,
-  } = useActiveProject();
+  const { projects, activeProject, activeProjectId, selectProject } =
+    useActiveProject();
 
   // 1. System Health State
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -260,7 +232,6 @@ export default function InternalDeveloperConsolePage() {
     setHealthLoading(true);
     setOllamaStatus("loading");
     try {
-      const started = performance.now();
       const res = await getSystemHealth();
       setHealth(res.data);
       setHealthLatencyMs(res.durationMs);

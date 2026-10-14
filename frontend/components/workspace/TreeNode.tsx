@@ -48,9 +48,6 @@ export function TreeNode({ node, depth = 0, selectedFileId, onSelectFile }: Tree
           }`}
         />
         <span className="font-mono text-[12.5px] truncate">{node.name}</span>
-        {isSelected && (
-          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
-        )}
       </button>
     );
   }

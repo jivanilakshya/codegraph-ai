@@ -39,24 +39,39 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function getProjects(signal?: AbortSignal) {
-  return request<ProjectListResponse>("/api/v1/projects", { signal });
+import { cachedRequest, invalidateCachePrefix, invalidateProjectCache } from "@/lib/apiCache";
+
+export function getProjects(signal?: AbortSignal, forceRefresh = false) {
+  if (forceRefresh) {
+    invalidateCachePrefix("projects:list");
+  }
+  return cachedRequest<ProjectListResponse>(
+    "projects:list",
+    () => request<ProjectListResponse>("/api/v1/projects", { signal }),
+    30_000
+  );
 }
 
-export function scanProject(projectId: number) {
-  return request(`/api/v1/projects/${projectId}/scan`, { method: "POST" });
+export async function scanProject(projectId: number) {
+  const result = await request(`/api/v1/projects/${projectId}/scan`, { method: "POST" });
+  invalidateProjectCache(projectId);
+  return result;
 }
 
-export function deleteProject(projectId: number) {
-  return request<ProjectDeleteResponse>(`/api/v1/projects/${projectId}`, { method: "DELETE" });
+export async function deleteProject(projectId: number) {
+  const result = await request<ProjectDeleteResponse>(`/api/v1/projects/${projectId}`, { method: "DELETE" });
+  invalidateProjectCache(projectId);
+  return result;
 }
 
-export function cloneGitHubProject(githubUrl: string) {
-  return request<GitHubCloneResponse>("/api/v1/projects/github", {
+export async function cloneGitHubProject(githubUrl: string) {
+  const result = await request<GitHubCloneResponse>("/api/v1/projects/github", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ github_url: githubUrl }),
   });
+  invalidateCachePrefix("projects:list");
+  return result;
 }
 
 export function uploadProject(file: File, onProgress: (progress: number) => void): Promise<ProjectUploadResponse> {
@@ -73,6 +88,7 @@ export function uploadProject(file: File, onProgress: (progress: number) => void
     request.addEventListener("load", () => {
       const response = request.response as ProjectUploadResponse & ApiErrorResponse;
       if (request.status >= 200 && request.status < 300) {
+        invalidateCachePrefix("projects:list");
         resolve(response);
         return;
       }

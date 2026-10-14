@@ -238,7 +238,6 @@ export function GraphPreview({
             </svg>
 
             <div className="absolute bottom-4 left-4 font-mono text-[10.5px] text-muted-foreground flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-black/40 backdrop-blur">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary cg-node" />
               preview · 12 of {totalNodes} nodes · click a node to inspect
             </div>
           </div>

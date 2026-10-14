@@ -375,7 +375,7 @@ function highlightText(text: string, term: string): React.ReactNode {
   );
 }
 
-function getLabelStyling(kind: HierarchyNodeKind, isSelected: boolean, depth: number): string {
+function getLabelStyling(kind: HierarchyNodeKind, isSelected: boolean): string {
   if (kind === "module") {
     return "font-mono text-[16px] font-bold tracking-tight text-white";
   }
@@ -454,7 +454,7 @@ function ASTRow({ node, depth, isSelected, isExpanded, searchTerm, onSelect, onT
       </span>
 
       {/* Label */}
-      <span className={cn("flex-1 min-w-0 truncate transition-colors", getLabelStyling(node.kind, isSelected, depth))}>
+      <span className={cn("flex-1 min-w-0 truncate transition-colors", getLabelStyling(node.kind, isSelected))}>
         {highlightText(node.label, searchTerm)}
       </span>
 

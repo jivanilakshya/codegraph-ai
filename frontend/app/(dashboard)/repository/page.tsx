@@ -172,7 +172,6 @@ function RepositoryPageInner() {
       >
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff]" />
             <span className="cg-label">Codebase Explorer</span>
           </div>
           <h1 className="text-4xl md:text-[56px] leading-[1] font-bold tracking-[-0.035em] text-white">
@@ -197,7 +196,6 @@ function RepositoryPageInner() {
             )}
           >
             <span className="flex items-center gap-2 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_6px_#00e5ff] shrink-0" />
               <span className="text-white font-medium truncate">
                 {currentProject ? currentProject.name : "Select project…"}
               </span>

@@ -14,7 +14,6 @@ export function ProjectHeader({ isUploading, uploadProgress, onOpenUploadDialog,
     <section className="flex flex-col md:flex-row md:items-end justify-between gap-6 reveal">
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
           <span className="cg-label">Workspace Context</span>
         </div>
         <h1 className="text-4xl md:text-[56px] leading-[1] font-bold tracking-[-0.035em] text-white">

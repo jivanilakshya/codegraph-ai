@@ -66,9 +66,9 @@ class ComplexityService:
                         f"Project with ID {project_id} was not found."
                     )
 
-                from app.services.project_settings_service import ProjectSettingsService
-                settings = ProjectSettingsService().get_settings(project_id)
-                if not settings.enable_complexity:
+                from app.models.project_settings import ProjectSettings
+                settings = session.get(ProjectSettings, project_id)
+                if settings is not None and not getattr(settings, "enable_complexity", True):
                     return ComplexityResponse(
                         project_id=project_id,
                         summary=ComplexitySummary(),

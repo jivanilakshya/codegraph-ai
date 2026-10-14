@@ -324,10 +324,24 @@ function GraphPageInner() {
   const handleDepthChange = useCallback(
     (depth: 1 | 2 | 3) => {
       setFocusDepth(depth);
+      if (architectureTree) {
+        const next = new Set<string>();
+        if (depth >= 2) {
+          architectureTree.allNodes.forEach((node) => {
+            if (node.type === "module") {
+              next.add(node.id);
+            }
+            if (depth >= 3 && node.type === "file") {
+              next.add(node.id);
+            }
+          });
+        }
+        setExpandedNodeIds(next);
+      }
       setGraphVersion((v) => v + 1);
       setFitViewRequest((v) => v + 1);
     },
-    []
+    [architectureTree]
   );
 
   // Handle Node Focus
@@ -519,7 +533,6 @@ function GraphPageInner() {
         >
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
               <span className="cg-label">CodeGraph AI / Architecture & Dependencies</span>
             </div>
             <h1 className="text-4xl md:text-[54px] leading-none font-bold tracking-[-0.035em] text-white">
@@ -578,7 +591,6 @@ function GraphPageInner() {
               )}
             >
               <span className="flex items-center gap-2 min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
                 <span className="text-white font-medium truncate">
                   {selectedProject?.name ?? "Select Project"}
                 </span>

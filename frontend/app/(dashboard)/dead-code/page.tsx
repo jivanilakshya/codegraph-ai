@@ -236,7 +236,6 @@ function DeadCodePageInner() {
       >
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(251,113,133,.65)]" />
             <span className="cg-label">CodeGraph AI / Code Quality</span>
           </div>
           <h1 className="text-4xl md:text-[54px] leading-none font-bold tracking-[-0.035em] text-white">
@@ -263,7 +262,6 @@ function DeadCodePageInner() {
               )}
             >
               <span className="flex items-center gap-2 min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
                 <span className="text-white font-medium truncate">
                   {activeProject?.name ?? "Select Project"}
                 </span>

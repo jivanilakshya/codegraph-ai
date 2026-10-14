@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
 import logging
 import os
 from http import HTTPStatus
@@ -21,23 +22,6 @@ from app.database.postgres import (
 
 configure_logging()
 logger = logging.getLogger("codegraph")
-
-app = FastAPI(title="CodeGraph AI API", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 def _runtime_directory(environment_variable: str, default_name: str) -> Path:
@@ -98,6 +82,54 @@ def _log_startup_banner(
     )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup preparation and shutdown cleanup."""
+    logger.info("Starting backend...")
+    upload_directory = _runtime_directory("UPLOAD_PATH", "uploads")
+    repository_directory = _runtime_directory("REPOSITORY_PATH", "repositories")
+
+    try:
+        upload_directory.mkdir(parents=True, exist_ok=True)
+        repository_directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        logger.exception("Could not prepare runtime directories.")
+        raise
+
+    wait_for_postgres()
+    wait_for_neo4j()
+    _log_startup_banner(
+        postgres_connected=True,
+        neo4j_connected=True,
+        ollama_available=_ollama_is_available(),
+    )
+    logger.info("Application startup complete")
+
+    yield
+
+    close_driver()
+    close_postgres()
+    logger.info("CodeGraph AI Backend stopped.")
+
+
+app = FastAPI(title="CodeGraph AI API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     """Log each API request once in a concise access-log format."""
@@ -120,38 +152,6 @@ async def log_request(request: Request, call_next):
         phrase,
     )
     return response
-
-
-@app.on_event("startup")
-def connect_databases() -> None:
-    """Prepare runtime directories and report service connectivity."""
-    logger.info("Starting backend...")
-    upload_directory = _runtime_directory("UPLOAD_PATH", "uploads")
-    repository_directory = _runtime_directory("REPOSITORY_PATH", "repositories")
-
-    try:
-        upload_directory.mkdir(parents=True, exist_ok=True)
-        repository_directory.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        logger.exception("Could not prepare runtime directories.")
-        raise
-
-    wait_for_postgres()
-    wait_for_neo4j()
-    _log_startup_banner(
-        postgres_connected=True,
-        neo4j_connected=True,
-        ollama_available=_ollama_is_available(),
-    )
-    logger.info("Application startup complete")
-
-
-@app.on_event("shutdown")
-def disconnect_databases() -> None:
-    """Release database resources when the API process stops."""
-    close_driver()
-    close_postgres()
-    logger.info("CodeGraph AI Backend stopped.")
 
 
 @app.get("/", tags=["health"])

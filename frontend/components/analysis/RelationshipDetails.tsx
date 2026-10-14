@@ -211,7 +211,6 @@ export function RelationshipDetails({
       <div className="h-11 flex items-center gap-2 px-4 border-b border-white/[0.06] shrink-0 bg-[#0a0d16]/95 z-10">
         <Network className="w-3.5 h-3.5 text-primary/80" />
         <span className="cg-label !text-foreground/80">Relationship Details</span>
-        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
       </div>
 
       <div
@@ -404,7 +403,6 @@ export function RelationshipDetails({
       {/* Floating feedback toast */}
       {toastMessage && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-full border border-primary/20 bg-[#0a0d16]/95 backdrop-blur-xl shadow-[0_0_30px_-10px_rgba(0,229,255,0.4)] font-mono text-[11.5px] text-foreground cg-pop">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_#00e5ff]" />
           {toastMessage}
         </div>
       )}

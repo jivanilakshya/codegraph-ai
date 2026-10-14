@@ -23,14 +23,26 @@ export async function developerRequest<T>(path: string, options?: RequestInit): 
   return { data: payload as T, durationMs, status: response.status };
 }
 
-export function getSystemHealth() {
-  return developerRequest<HealthResponse>("/health");
+import { cachedRequest, invalidateProjectCache } from "@/lib/apiCache";
+
+export function getSystemHealth(forceRefresh = false) {
+  return cachedRequest<TimedResponse<HealthResponse>>(
+    "system:health",
+    () => developerRequest<HealthResponse>("/health"),
+    forceRefresh ? 0 : 15_000
+  );
 }
 
-export function runProjectScan(projectId: number) {
-  return developerRequest<ScanResponse>(`/api/v1/projects/${projectId}/scan`, { method: "POST" });
+export async function runProjectScan(projectId: number) {
+  const result = await developerRequest<ScanResponse>(`/api/v1/projects/${projectId}/scan`, { method: "POST" });
+  invalidateProjectCache(projectId);
+  return result;
 }
 
-export function getProjectGraphStats(projectId: number) {
-  return developerRequest<GraphStatsResponse>(`/api/v1/projects/${projectId}/graph/stats`);
+export function getProjectGraphStats(projectId: number, forceRefresh = false) {
+  return cachedRequest<TimedResponse<GraphStatsResponse>>(
+    `project:${projectId}:graph:stats`,
+    () => developerRequest<GraphStatsResponse>(`/api/v1/projects/${projectId}/graph/stats`),
+    forceRefresh ? 0 : 30_000
+  );
 }
